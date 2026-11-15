@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "architecture": "aarch64_generic",
+  "packages": {
+    "bash": "5.3-r5",
+    "cgi-io": "2026.07.21~31cb3c89-r1",
+    "coreutils": "9.9-r2",
+    "coreutils-dd": "9.9-r2",
+    "coreutils-shuf": "9.9-r2",
+    "coreutils-truncate": "9.9-r2",
+    "dbus": "1.16.2-r4",
+    "dejavu-fonts-ttf-DejaVuSans": "2.37-r1",
+    "dejavu-fonts-ttf-DejaVuSans-Bold": "2.37-r1",
+    "glib2": "2.82.0-r1",
+    "libattr": "2.5.2-r3",
+    "libdbus": "1.16.2-r4",
+    "libevdev": "1.13.4-r1",
+    "libexpat": "2.8.4-r1",
+    "libffi": "3.4.7-r1",
+    "libfreetype": "2.13.3-r1",
+    "libmbim": "1.32.0-r1",
+    "libpng": "1.6.50-r1",
+    "libqmi": "1.36.0-r1",
+    "libqrtr-glib": "1.2.2-r3",
+    "libudev-zero": "1.0.4-r1",
+    "modemmanager": "1.24.0-r11",
+    "mtools": "4.0.45-r1",
+    "nano": "9.2-r1"
+  }
+}
