@@ -1,0 +1,91 @@
+/* Scoped to this view: LuCI navigation and other pages keep their theme. */
+.modem-identity-page {
+	--mi-ink: #172740;
+	--mi-muted: #627086;
+	--mi-line: #dce3ed;
+	--mi-blue: #244fce;
+	box-sizing: border-box;
+	max-width: 1060px;
+	margin: 0 auto 32px;
+	padding: 6px 0;
+	color: var(--mi-ink);
+	font-size: 15px;
+	line-height: 1.55;
+}
+.modem-identity-page *, .modem-identity-page *::before, .modem-identity-page *::after { box-sizing: border-box; }
+.modem-identity-page [hidden] { display: none !important; }
+.modem-identity-page .mi-page-header { display: flex; flex-direction: column; gap: 14px; margin-bottom: 22px; }
+.modem-identity-page h2 { color: var(--mi-ink); font-size: 28px; font-weight: 700; line-height: 1.2; letter-spacing: -.035em; margin: 4px 0 0; padding: 0; border: 0; }
+.modem-identity-page h3 { color: var(--mi-ink); font-size: 21px; font-weight: 650; line-height: 1.3; letter-spacing: -.02em; margin: 12px 0 8px; }
+.modem-identity-page p { margin: 0; }
+.modem-identity-page .mi-eyebrow { color: var(--mi-muted); font-size: 10px; font-weight: 700; letter-spacing: .12em; line-height: 1.5; }
+.modem-identity-page .mi-button { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; width: 100%; border: 1px solid var(--mi-line); border-radius: 11px; padding: 12px 18px; background: #fff; color: var(--mi-ink); font: inherit; font-size: 14px; font-weight: 650; line-height: 1.35; white-space: normal; text-align: center; cursor: pointer; box-shadow: none; text-shadow: none; transition: background .15s, border-color .15s; }
+.modem-identity-page .mi-button:hover:not(:disabled) { background: #f2f5fa; border-color: #a5b5ce; }
+.modem-identity-page .mi-button:disabled { color: #8994a7; background: #edf0f5; border-color: #e3e7ed; cursor: not-allowed; opacity: 1; }
+.modem-identity-page .mi-button-primary { color: #fff; background: var(--mi-blue); border-color: var(--mi-blue); }
+.modem-identity-page .mi-button-primary:hover:not(:disabled) { background: #193da7; border-color: #193da7; }
+.modem-identity-page .mi-button-secondary { background: #f5f7fb; }
+.modem-identity-page .mi-button-quiet { min-height: 44px; background: transparent; }
+.modem-identity-page .mi-button:focus-visible, .modem-identity-page summary:focus-visible { outline: 3px solid #7da3fa; outline-offset: 3px; }
+.modem-identity-page .mi-hero { padding: 22px; border-radius: 18px; background: linear-gradient(125deg, #142b4b, #23416a); color: #fff; margin-bottom: 20px; }
+.modem-identity-page .mi-hero-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 23px; }
+.modem-identity-page .mi-device-mark { display: inline-flex; align-items: center; justify-content: center; width: 39px; height: 39px; border: 1px solid #ffffff30; border-radius: 11px; color: #d8e4ff; font-size: 13px; font-weight: 700; letter-spacing: .03em; }
+.modem-identity-page .mi-badge { display: inline-flex; align-items: center; gap: 7px; border-radius: 999px; padding: 6px 10px; background: #ffffff16; color: #e8f0ff; font-size: 11px; font-weight: 650; line-height: 1.4; }
+.modem-identity-page .mi-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #a7c5ff; flex: 0 0 auto; }
+.modem-identity-page .mi-badge-editing { color: #fff0c6; background: #f5c24d20; }
+.modem-identity-page .mi-badge-editing::before { background: #f6cc6c; }
+.modem-identity-page .mi-badge-pending::before { background: #f6cc6c; }
+.modem-identity-page .mi-badge-offline::before { background: #ffaaa5; }
+.modem-identity-page .mi-hero-label { font-size: 12px; color: #c2d1e8; margin-bottom: 7px; }
+.modem-identity-page .mi-identifier { display: block; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: clamp(19px, 5.5vw, 30px); letter-spacing: .04em; line-height: 1.35; overflow-wrap: anywhere; }
+.modem-identity-page .mi-hero-meta { color: #a9bdd9; font-size: 11px; margin-top: 17px; }
+.modem-identity-page .mi-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.modem-identity-page .mi-card { min-width: 0; padding: 22px; border: 1px solid var(--mi-line); border-radius: 16px; background: #fff; box-shadow: 0 3px 12px #1b335005; }
+.modem-identity-page .mi-description { font-size: 14px; color: var(--mi-muted); line-height: 1.65; margin-bottom: 22px; }
+.modem-identity-page .mi-label { display: block; color: var(--mi-ink); font-size: 13px; font-weight: 650; margin: 20px 0 8px; }
+.modem-identity-page .mi-input { display: block; min-height: 52px; width: 100%; max-width: 100%; min-width: 0; margin: 0; padding: 12px 14px; color: var(--mi-ink); border: 1px solid #c8d2e1; border-radius: 10px; background: #fbfcfe; box-shadow: none; font-size: 16px; line-height: 1.5; }
+.modem-identity-page .mi-imei-input { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .06em; }
+.modem-identity-page .mi-input::placeholder { color: #8491a5; letter-spacing: 0; }
+.modem-identity-page .mi-input:focus { border-color: var(--mi-blue); outline: 3px solid #244fce18; outline-offset: 1px; background: #fff; }
+.modem-identity-page .mi-input[aria-invalid="true"] { border-color: #bc4450; }
+.modem-identity-page .mi-input:disabled { background: #f2f4f7; color: #8994a7; }
+.modem-identity-page .mi-field-help { color: var(--mi-muted); font-size: 12px; line-height: 1.6; margin: 9px 0 20px; overflow-wrap: anywhere; }
+.modem-identity-page .mi-field-error { color: #a52c3b; }
+.modem-identity-page .mi-locked-hint, .modem-identity-page .mi-fine-print { color: var(--mi-muted); font-size: 12px; line-height: 1.6; margin-top: 12px; }
+.modem-identity-page .mi-storage { background: #f7f9fc; }
+.modem-identity-page .mi-steps { padding-left: 22px; margin: 0 0 20px; color: var(--mi-muted); font-size: 14px; }
+.modem-identity-page .mi-step { padding: 7px 0 7px 4px; }
+.modem-identity-page .mi-step-active { color: var(--mi-blue); font-weight: 700; }
+.modem-identity-page .mi-step-complete { color: #24634e; }
+.modem-identity-page .mi-step-error { color: #9a2937; font-weight: 700; }
+.modem-identity-page .mi-feedback { padding: 14px 17px; margin: 0 0 20px; border: 1px solid #cedbf6; border-radius: 12px; color: #244577; background: #f1f5ff; font-size: 14px; overflow-wrap: anywhere; }
+.modem-identity-page .mi-feedback-error { background: #fff3f2; color: #9a2937; border-color: #efcccf; }
+.modem-identity-page .mi-feedback-success { background: #eff9f5; color: #24634e; border-color: #c5e6d8; }
+.modem-identity-page .mi-saved-backup { margin-top: 20px; border-top: 1px solid var(--mi-line); padding-top: 17px; }
+.modem-identity-page .mi-backup-name { display: block; color: var(--mi-muted); background: none; padding: 7px 0 0; font-size: 12px; border: 0; overflow-wrap: anywhere; }
+.modem-identity-page .mi-restore { padding: 0; margin-top: 16px; }
+.modem-identity-page .mi-restore summary { display: flex; justify-content: space-between; align-items: center; gap: 14px; min-height: 64px; padding: 18px 22px; list-style: none; cursor: pointer; border-radius: 16px; }
+.modem-identity-page .mi-restore summary::-webkit-details-marker { display: none; }
+.modem-identity-page .mi-restore-heading { font-size: 14px; font-weight: 650; }
+.modem-identity-page .mi-chevron { display: block; width: 8px; height: 8px; margin-right: 3px; flex: 0 0 auto; border-right: 2px solid #73839b; border-bottom: 2px solid #73839b; transform: rotate(45deg); }
+.modem-identity-page .mi-restore[open] .mi-chevron { transform: rotate(225deg); }
+.modem-identity-page .mi-restore-body { padding: 0 22px 3px; }
+.modem-identity-page .mi-restore-controls { display: flex; flex-direction: column; gap: 12px; }
+.modem-identity-page .mi-change-actions { display: flex; flex-direction: column; gap: 12px; }
+@media (min-width: 600px) {
+	.modem-identity-page .mi-change-actions { flex-direction: row; }
+	.modem-identity-page .mi-change-actions .mi-button { flex: 1; min-width: 0; }
+	.modem-identity-page .mi-page-header { flex-direction: row; justify-content: space-between; align-items: center; }
+	.modem-identity-page .mi-page-header .mi-button { width: auto; }
+	.modem-identity-page .mi-hero { padding: 27px 30px; }
+	.modem-identity-page h2 { font-size: 32px; }
+	.modem-identity-page .mi-restore-controls { flex-direction: row; }
+	.modem-identity-page .mi-restore-controls .mi-button { width: auto; flex: 0 0 auto; }
+}
+@media (min-width: 840px) {
+	.modem-identity-page .mi-grid { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 20px; }
+	.modem-identity-page .mi-change { grid-column: 1; grid-row: 1; padding: 28px; }
+	.modem-identity-page .mi-storage { grid-column: 2; grid-row: 1; padding: 28px; align-self: start; }
+	.modem-identity-page .mi-restore { margin-top: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { .modem-identity-page .mi-button { transition: none; } }

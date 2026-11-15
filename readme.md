@@ -10,6 +10,7 @@ Modern OpenWrt build targeting MSM8916 devices with full modem, USB gadget, and 
 - [Prerequisites](#prerequisites)
 - [Building](#building)
 - [Installation](#installation)
+  - [Install the latest MF68E build](#install-the-latest-mf68e-build)
   - [Flashing from OEM Firmware](#flashing-from-oem-firmware)
   - [Accessing Boot Modes](#accessing-boot-modes)
 - [Troubleshooting](#troubleshooting)
@@ -40,7 +41,60 @@ UZ801-specific bootloader settings and a fixed partition layout. These images
 expect the existing OpenWrt partition layout (rootfs at partition 14 and
 rootfs_data at partition 15); they are not an OEM installation bundle.
 
+A device-specific **experimental** factory installer is now available in
+[`installer/mf68e/`](installer/mf68e/README.md) for the backed-up unit with ADB
+serial `5664c9ea`. It builds MF68E-selected lk1st firmware and generates a migration
+from that unit's stock GPT. It has been flashed with all writes verified and
+OpenWrt 25.12.6 boot confirmed over SSH/HTTP. Full peripheral functionality and
+physical EDL recovery remain untested. Do not use the shared
+UZ801 EDL flasher for this unit. Hardware findings are recorded in
+[`device-info.md`](device-info.md).
+
 ## Features
+
+### SMS messages
+
+MF68E builds include **Network → SMS**, with incoming and sent messages, a
+15-second automatic refresh, and a compose form. Sending requires LuCI write
+permission. Failed sends retain the draft and are never retried automatically;
+check the message state before sending again after a timeout. Long messages may
+use multiple SMS and incur carrier charges. Messages remain managed by the
+modem, without an additional persistent archive.
+
+The page and RPC service were checked on the MF68E with ModemManager 1.24.0.
+Automated UI tests and isolated backend tests cover reading, sending, Unicode,
+input validation and errors. Real carrier sending and receipt of a new incoming
+message have not been tested. See [SMS package notes](packages/luci-app-sms/README.md).
+
+### Modem identity management
+
+The MF68E build now includes a native `modem-identity` CLI and
+**Network → Modem identity** LuCI page. They support IMEI validation, original-NV
+backups, requested NV item 550 changes, readback verification and restore.
+Persistent changes require explicitly enabling writable modem storage.
+The **Generate IMEI** button fills the input with a random serial and valid Luhn
+check digit while preserving the current device's eight-digit type allocation
+code. Generation does not change the modem; use **Apply & restart** to save and verify it.
+On this unit, the requested IMEI survived a modem restart and full router reboot.
+The save flow waits for an acknowledged backing-store write before restarting;
+this can take several minutes. See [feature instructions](packages/modem-identity/README.md).
+
+### Mobile navigation
+
+MF68E builds select the [MiFi LuCI theme](packages/luci-theme-mifi/README.md), with
+a mobile drawer, desktop sidebar and active-page navigation. It omits the theme
+footer and OpenWrt logo branding while retaining LuCI's form components.
+
+### Device button and display
+
+- Single press: wake the status display.
+- Double press within half a second: show a full-screen Wi-Fi connection QR code
+  for 60 seconds. Single press returns to status.
+- Hold for at least three seconds, then release: shut down the router.
+
+Power-on from shutdown is controlled by the PMIC/bootloader and remains
+unverified on this unit. The status display shows all IMEI digits in two enlarged
+rows and omits the traffic-interface footer.
 
 ### Working Components
 - **Modem**: Fully functional with cellular connectivity
@@ -104,7 +158,117 @@ Output is saved to `bin/targets/msm89xx/msm8916/` on the host.
 
 ## Installation
 
+### Install the latest MF68E build
+
+These steps update **the backed-up device with serial `5664c9ea`, already running
+OpenWrt with board name `generic,mf68e`**. Its initial factory migration is complete.
+Use the MF68E image only. The commands below run on the host from the repository
+root unless noted otherwise; connect the router by USB and keep power connected
+throughout the upgrade.
+
+#### 1. Build or locate the image
+
+To build the current checkout against the validated OpenWrt 25.12.6 release:
+
+```bash
+cd devenv
+OPENWRT_VERSION=v25.12.6 docker compose build builder
+docker compose run --rm builder bash /repo/devenv/build-mf68e.sh
+cd ..
+```
+
+If the latest local build is already present, skip the build commands. Outputs
+are in `bin/targets/msm89xx/msm8916/`. Use
+`openwrt-msm89xx-msm8916-generic-mf68e-squashfs-sysupgrade.bin` for this update;
+`boot.img` and `system.img` are separate factory-installer payloads.
+The existing artifacts report revision `r33311-981c978eff`; rebuilding may change
+their checksums. GitHub Actions' firmware workflow currently selects UZ801/UF02,
+so use the local MF68E build procedure above for this device.
+
+Verify the build outputs before transferring them:
+
+```bash
+(cd bin/targets/msm89xx/msm8916 && sha256sum -c sha256sums)
+```
+
+Every listed file should report `OK`. Keep the image and `sha256sums` from the
+same build together.
+
+#### 2. Check the router and save its configuration
+
+The router is available at `192.168.1.1` over USB. Check its board identity:
+
+```bash
+ssh root@192.168.1.1 'cat /tmp/sysinfo/board_name; ubus call system board'
+```
+
+The board name must be `generic,mf68e`. Stop if it differs. Save a configuration
+archive to the host before updating:
+
+```bash
+ssh root@192.168.1.1 'sysupgrade -b /tmp/mf68e-config-backup.tar.gz'
+scp -O root@192.168.1.1:/tmp/mf68e-config-backup.tar.gz ./mf68e-config-backup.tar.gz
+```
+
+Keep this archive private. It contains configuration and credentials; it does
+not replace the full stock eMMC and radio backups described in
+[device-info.md](device-info.md).
+
+#### 3. Transfer, validate and install
+
+```bash
+scp -O bin/targets/msm89xx/msm8916/openwrt-msm89xx-msm8916-generic-mf68e-squashfs-sysupgrade.bin root@192.168.1.1:/tmp/mf68e-sysupgrade.bin
+sha256sum bin/targets/msm89xx/msm8916/openwrt-msm89xx-msm8916-generic-mf68e-squashfs-sysupgrade.bin
+ssh root@192.168.1.1 'sha256sum /tmp/mf68e-sysupgrade.bin'
+ssh root@192.168.1.1 'sysupgrade -T /tmp/mf68e-sysupgrade.bin'
+```
+
+Compare the two SHA-256 values; they must match. Continue only if the image test
+succeeds. Do not use `-F` to bypass a rejected image.
+
+```bash
+ssh root@192.168.1.1 'sysupgrade /tmp/mf68e-sysupgrade.bin'
+```
+
+The SSH connection will close while the router writes the image and reboots.
+Leave power connected and allow several minutes for it to return. The default
+command requests configuration preservation. The project's upgrade hook clears
+the overlay, so manually installed packages and other files outside the saved
+configuration must be reinstalled or backed up separately. Configuration restore
+across an upgrade has not yet been verified on this unit.
+
+For a clean installation, use `sysupgrade -n /tmp/mf68e-sysupgrade.bin` instead;
+this discards configuration, including passwords and network settings.
+
+After the router returns, reconnect USB if needed to renew the host's DHCP lease,
+open http://192.168.1.1, and verify the running version:
+
+```bash
+ssh root@192.168.1.1 'ubus call system board; df -h /overlay'
+```
+
+If you preserved a different LAN address, reconnect at that address. After a clean
+installation, set a root password through LuCI or `passwd`. Check the display,
+Wi-Fi and cellular connection separately: initial OpenWrt boot is confirmed, but
+Wi-Fi and cellular data operation remain unverified on this unit. This sysupgrade
+procedure is based on the project's upgrade implementation; a completed hardware
+sysupgrade has not yet been recorded.
+
+#### Installing from stock Android
+
+A stock Android device needs the device-specific GPT/bootloader migration before
+it can use sysupgrade. Follow the full
+[experimental MF68E factory installer instructions](installer/mf68e/README.md),
+including backup verification, firmware preparation, explicit EDL flashing and
+first boot. That installer is pinned to this unit's stock preflash snapshot;
+do not rerun it on the already migrated device or reuse it for another unit.
+Do not write OpenWrt images directly to stock partitions 14/15 or use the shared
+UZ801 flasher on this device.
+
 ### Flashing from OEM Firmware
+
+The shared flashing steps below apply to UZ801/UF02. For MF68E, use the
+[device-specific instructions above](#install-the-latest-mf68e-build).
 
 1. **Install EDL tool**: https://github.com/bkerler/edl
 2. **Enter EDL mode**:

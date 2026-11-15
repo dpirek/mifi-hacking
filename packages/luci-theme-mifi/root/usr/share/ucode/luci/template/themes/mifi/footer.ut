@@ -1,0 +1,7 @@
+{# MiFi theme: no visible footer or distribution branding. -#}
+		{% if (!blank_page): %}
+		</div>
+		<script>L.require('menu-mifi')</script>
+		{% endif %}
+	</body>
+</html>

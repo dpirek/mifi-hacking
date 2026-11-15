@@ -1,0 +1,159 @@
+#!/bin/sh
+. /usr/share/libubox/jshn.sh
+
+mode_lock=/var/run/modem-identity-mode.lock
+mode_error=/var/run/modem-identity-mode.error
+storage_state=/var/run/rmtfs-storage-state
+pending_commit=/var/run/modem-identity-pending-commit
+
+load_storage() {
+    [ -r "$storage_state" ] || return 1
+    IFS=' ' read -r storage_version storage_pid storage_seq storage_bytes storage_time storage_ro storage_errno < "$storage_state" 2>/dev/null || return 1
+    for value in "$storage_version" "$storage_pid" "$storage_seq" "$storage_bytes" "$storage_time" "$storage_ro" "$storage_errno"; do
+        case "$value" in ''|*[!0-9]*) return 1 ;; esac
+    done
+    [ "$storage_version" = 1 ] && [ "$storage_pid" -gt 1 ] || return 1
+    case "$(readlink "/proc/$storage_pid/exe")" in
+        /usr/sbin/rmtfs|'/usr/sbin/rmtfs (deleted)') return 0 ;;
+    esac
+    return 1
+}
+
+load_pending() {
+    [ -r "$pending_commit" ] || return 1
+    IFS=' ' read -r pending_pid pending_seq pending_bytes pending_imei < "$pending_commit" 2>/dev/null || return 1
+    for value in "$pending_pid" "$pending_seq" "$pending_bytes" "$pending_imei"; do
+        case "$value" in ''|*[!0-9]*) return 1 ;; esac
+    done
+}
+
+commit_ready() {
+    load_pending && load_storage &&
+    [ "$storage_pid" = "$pending_pid" ] &&
+    [ "$storage_errno" = 0 ] &&
+    [ "$storage_seq" -gt "$pending_seq" ] &&
+    [ "$storage_bytes" -gt "$pending_bytes" ]
+}
+
+append_storage_status() {
+    if load_storage; then
+        json_add_boolean storage_tracking 1
+        json_add_int storage_pid "$storage_pid"
+        json_add_int storage_write_seq "$storage_seq"
+        json_add_int storage_write_bytes "$storage_bytes"
+        json_add_int storage_error "$storage_errno"
+    else json_add_boolean storage_tracking 0
+    fi
+    if load_pending; then
+        json_add_boolean commit_pending 1
+        json_add_int commit_pid "$pending_pid"
+        json_add_int commit_seq "$pending_seq"
+        json_add_int commit_bytes "$pending_bytes"
+        json_add_string commit_imei "$pending_imei"
+    else json_add_boolean commit_pending 0
+    fi
+}
+
+finish_write() {
+    json_load "$result" || { error 'Invalid response from modem identity tool'; return; }
+    json_get_var changed changed
+    json_get_var verified readback_verified
+    if [ "$changed" = 1 ] && [ "$verified" = 1 ]; then
+        json_get_var target imei
+        if ! load_storage || [ "$storage_ro" != 0 ]; then
+            json_add_string error 'Storage tracking changed during the write. Check current modem status; no write will be retried.'
+        else
+            # Snapshot AFTER readback: only a later acknowledged disk write counts.
+            (umask 077; printf '%s %s %s %s\n' "$storage_pid" "$storage_seq" "$storage_bytes" "$target" > "$pending_commit.$$") &&
+            mv "$pending_commit.$$" "$pending_commit" || {
+                json_add_string error 'Could not record pending storage commit; keep the modem powered on.'
+                json_dump
+                return
+            }
+            # Capability version 1 guarantees this daemon handles SIGUSR1 safely.
+            kill -USR1 "$storage_pid" 2>/dev/null || true
+            append_storage_status
+        fi
+    fi
+    json_dump
+}
+
+error() {
+	json_init
+	json_add_string error "$1"
+	json_dump
+}
+
+case "$1" in
+	list)
+		echo '{"status":{},"change":{"imei":"","expected":""},"write_mode":{"enabled":true},"restore":{"backup":"","expected":""}}'
+		;;
+	call)
+		IFS= read -r input
+		json_load "$input" || { error 'Invalid JSON request'; exit 0; }
+		case "$2" in
+			status)
+				result=$(/usr/bin/modem-identity read) || true
+				json_load "$result" || { error 'Could not read modem status'; exit 0; }
+				if [ -d "$mode_lock" ]; then json_add_boolean mode_changing 1; else json_add_boolean mode_changing 0; fi
+				[ ! -f "$mode_error" ] || json_add_string mode_error "$(cat "$mode_error")"
+                append_storage_status
+				json_dump
+				;;
+			change)
+				json_get_type type imei
+				[ "$type" = string ] || { error 'IMEI must be a string'; exit 0; }
+				json_get_var imei imei
+				json_get_type type expected
+				[ "$type" = string ] || { error 'Expected IMEI must be a string'; exit 0; }
+				json_get_var expected expected
+                [ ! -f "$pending_commit" ] || { error 'The previous identity is still being saved. Finish saving before making another change.'; exit 0; }
+                load_storage && [ "$storage_ro" = 0 ] || { error 'Writable storage tracking is not ready; no IMEI write attempted.'; exit 0; }
+                result=$(/usr/bin/modem-identity set "$imei" --expect "$expected") || true
+                finish_write
+				;;
+			write_mode)
+				json_get_type type enabled
+				[ "$type" = boolean ] || { error 'enabled must be a boolean'; exit 0; }
+				json_get_var enabled enabled
+                if [ -f "$pending_commit" ]; then
+                    if [ "$enabled" = 1 ]; then
+                        error 'An identity is being saved. Wait for storage commit before restarting.'; exit 0
+                    fi
+                    commit_ready || { error 'Modem storage has not acknowledged the save yet. Keep it powered on and wait, then finish saving.'; exit 0; }
+                fi
+				[ "$enabled" = 1 ] && read_only=0 || read_only=1
+				mkdir "$mode_lock" 2>/dev/null || { error 'Storage mode is already changing. Wait for the modem to restart.'; exit 0; }
+				uci set rmtfs.main=rmtfs &&
+				uci set "rmtfs.main.read_only=$read_only" &&
+				uci commit rmtfs || { rmdir "$mode_lock"; error 'Could not save rmtfs configuration'; exit 0; }
+				rm -f "$mode_error" "$pending_commit"
+				# Return immediately; the UI polls readiness instead of holding RPC open.
+				(
+					trap 'rmdir "$mode_lock"' EXIT
+					/etc/init.d/rmtfs restart || printf '%s\n' 'Could not restart modem storage. Try Finish & restart.' > "$mode_error"
+				) </dev/null >/tmp/modem-identity-mode.log 2>&1 &
+				echo '{"ok":true,"modem_restarting":true}'
+				;;
+			restore)
+				json_get_type type backup
+				[ "$type" = string ] || { error 'Backup must be a filename'; exit 0; }
+				json_get_var backup backup
+				case "$backup" in
+					''|*[!a-zA-Z0-9._-]*|.*) error 'Invalid backup filename'; exit 0 ;;
+					item550-*.nv) ;;
+					*) error 'Invalid backup filename'; exit 0 ;;
+				esac
+				json_get_type type expected
+				[ "$type" = string ] || { error 'Expected IMEI must be a string'; exit 0; }
+				json_get_var expected expected
+                [ ! -f "$pending_commit" ] || { error 'The previous identity is still being saved. Finish saving before restoring.'; exit 0; }
+                load_storage && [ "$storage_ro" = 0 ] || { error 'Writable storage tracking is not ready; no restore attempted.'; exit 0; }
+                result=$(/usr/bin/modem-identity restore "/etc/modem-identity-backups/$backup" --expect "$expected") || true
+                finish_write
+				;;
+			*) error 'Unknown method' ;;
+		esac
+		;;
+	*) exit 1 ;;
+esac

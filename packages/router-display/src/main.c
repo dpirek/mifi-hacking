@@ -19,7 +19,7 @@
 #define QR_SIZE 108
 #define QR_TOP_MARGIN 6
 #define TEXT_HEIGHT 13
-#define MIN_MODULE_SIZE 3  // Minimum pixels per QR module for readability
+#define MIN_MODULE_SIZE 2  // Include the required four-module quiet zone.
 
 typedef struct {
     uint16_t data[WIDTH * HEIGHT];
@@ -35,6 +35,13 @@ typedef struct {
     char hostname[32];
     int show_qr;
     int uppercase;
+    int dashboard;
+    int battery_estimated;
+    int signal;
+    char imei[16];
+    char download[24];
+    char upload[24];
+    char interface[24];
 } DisplayConfig;
 
 void fb_init(Framebuffer *fb) {
@@ -133,7 +140,7 @@ int fb_draw_qr(Framebuffer *fb, const char *text, int x, int y, int size) {
     }
     
     int qr_modules = qrcodegen_getSize(qr_data);
-    int module_size = size / qr_modules;
+    int module_size = size / (qr_modules + 8);
     
     // Check if QR modules are too small (minimum pixels per module)
     if (module_size < MIN_MODULE_SIZE) {
@@ -142,19 +149,20 @@ int fb_draw_qr(Framebuffer *fb, const char *text, int x, int y, int size) {
         return 0;  // Don't draw, QR would be unreadable
     }
     
-    // Calculate actual QR size and center horizontally, align top vertically
-    int actual_qr_size = qr_modules * module_size;
+    // Center the complete QR code, including its quiet zone.
+    int actual_qr_size = (qr_modules + 8) * module_size;
     int offset_x = (size - actual_qr_size) / 2;  // Center horizontally
-    int offset_y = 0;                             // Top aligned
+    int offset_y = (size - actual_qr_size) / 2;
+    fb_draw_rect(fb, x, y, size, size, COLOR_WHITE);
     
     for (int row = 0; row < qr_modules; row++) {
         for (int col = 0; col < qr_modules; col++) {
             if (qrcodegen_getModule(qr_data, col, row)) {
                 fb_draw_rect(fb, 
-                           x + offset_x + col * module_size, 
-                           y + offset_y + row * module_size,
+                           x + offset_x + (col + 4) * module_size,
+                           y + offset_y + (row + 4) * module_size,
                            module_size, module_size, 
-                           COLOR_WHITE);
+                           COLOR_BLACK);
             }
         }
     }
@@ -168,13 +176,90 @@ void str_to_upper(char *str) {
     }
 }
 
+/* Wi-Fi QR syntax requires escaping reserved characters in credentials. */
+static void wifi_escape(char *out, const char *value) {
+    while (*value) {
+        if (strchr("\\;,:\"", *value)) *out++ = '\\';
+        *out++ = *value++;
+    }
+    *out = '\0';
+}
+
+/* Dashboard coordinates are fitted to the physical 128 x 128 panel. */
+static void draw_fitted(Framebuffer *fb, FT_Face face, const char *value,
+                        int x, int baseline, int size, int width, int right) {
+    char text[64];
+    snprintf(text, sizeof(text), "%s", value);
+    while (*text && fb_get_text_width(face, text, size) > width)
+        text[strlen(text) - 1] = 0;
+    int measured = fb_get_text_width(face, text, size);
+    fb_draw_text(fb, face, text, right ? x + width - measured : x, baseline, size);
+}
+
+static void generate_dashboard(Framebuffer *fb, DisplayConfig *cfg, FT_Face face) {
+    fb_init(fb);
+    fb_draw_rect(fb, 0, 0, WIDTH, 19, RGB565(25, 55, 91));
+    fb_draw_text(fb, face, "MiFi", 5, 14, 12);
+    char text[32];
+    if (cfg->battery < 0)
+        snprintf(text, sizeof(text), "--");
+    else
+        snprintf(text, sizeof(text), "%s%s%d%%", cfg->charging ? "+" : "",
+                 cfg->battery_estimated ? "~" : "", cfg->battery);
+    draw_fitted(fb, face, text, 43, 13, 10, 59, 1);
+    fb_draw_rect(fb, 107, 5, 15, 9, COLOR_WHITE);
+    fb_draw_rect(fb, 109, 7, 11, 5, RGB565(25, 55, 91));
+    fb_draw_rect(fb, 122, 8, 2, 3, COLOR_WHITE);
+    if (cfg->battery >= 0) {
+        uint16_t color = cfg->battery <= 15 ? RGB565(255, 120, 105) : RGB565(99, 222, 176);
+        fb_draw_rect(fb, 109, 7, (11 * cfg->battery + 99) / 100, 5, color);
+    }
+    int bars = cfg->signal < 0 ? 0 : (cfg->signal + 24) / 25;
+    for (int i = 0; i < 4; i++) {
+        int height = 4 + i * 3;
+        fb_draw_rect(fb, 6 + i * 6, 35 - height, 4, height,
+                     i < bars ? RGB565(99, 222, 176) : RGB565(54, 65, 80));
+    }
+    if (cfg->signal < 0) snprintf(text, sizeof(text), "--");
+    else snprintf(text, sizeof(text), "%d%%", cfg->signal);
+    fb_draw_text(fb, face, text, 35, 34, 10);
+    draw_fitted(fb, face, cfg->network_type, 77, 34, 10, 46, 1);
+    draw_fitted(fb, face, cfg->operator, 6, 49, 10, 116, 0);
+    fb_draw_rect(fb, 6, 55, 116, 1, RGB565(45, 63, 85));
+    fb_draw_text(fb, face, "IMEI", 6, 63, 8);
+    /* Two rows keep all 15 digits readable on the narrow physical panel. */
+    const char *imei = cfg->imei[0] ? cfg->imei : "Unavailable";
+    char imei_top[9], imei_bottom[9];
+    int split_imei = strlen(imei) == 15 && strspn(imei, "0123456789") == 15;
+    snprintf(imei_top, sizeof(imei_top), "%.8s", imei);
+    snprintf(imei_bottom, sizeof(imei_bottom), "%s", split_imei ? imei + 8 : "");
+    const char *first_row = split_imei ? imei_top : imei;
+    int imei_size = 22;
+    while (imei_size > 1 &&
+           (fb_get_text_width(face, first_row, imei_size) > WIDTH - 8 ||
+            fb_get_text_width(face, imei_bottom, imei_size) > WIDTH - 8))
+        imei_size--;
+    int imei_width = fb_get_text_width(face, first_row, imei_size);
+    fb_draw_text(fb, face, first_row, (WIDTH - imei_width) / 2,
+                 split_imei ? 82 : 91, imei_size);
+    if (split_imei) {
+        imei_width = fb_get_text_width(face, imei_bottom, imei_size);
+        fb_draw_text(fb, face, imei_bottom, (WIDTH - imei_width) / 2, 104, imei_size);
+    }
+    fb_draw_text(fb, face, "DL", 6, 116, 9);
+    draw_fitted(fb, face, cfg->download, 27, 116, 10, 95, 1);
+    fb_draw_text(fb, face, "UL", 6, 127, 9);
+    draw_fitted(fb, face, cfg->upload, 27, 127, 10, 95, 1);
+}
+
 void generate_display(Framebuffer *fb, DisplayConfig *cfg, FT_Face face) {
+    if (cfg->dashboard) { generate_dashboard(fb, cfg, face); return; }
     fb_init(fb);
     
     char operator_text[32], network_text[8], hostname_text[32];
-    strncpy(operator_text, cfg->operator, 31);
-    strncpy(network_text, cfg->network_type, 7);
-    strncpy(hostname_text, cfg->hostname, 31);
+    snprintf(operator_text, sizeof(operator_text), "%s", cfg->operator);
+    snprintf(network_text, sizeof(network_text), "%s", cfg->network_type);
+    snprintf(hostname_text, sizeof(hostname_text), "%s", cfg->hostname);
     
     if (cfg->uppercase) {
         str_to_upper(operator_text);
@@ -182,19 +267,18 @@ void generate_display(Framebuffer *fb, DisplayConfig *cfg, FT_Face face) {
         str_to_upper(hostname_text);
     }
     
-    // Calculate QR position: centered horizontally, at top with margin
-    int qr_x = (WIDTH - QR_SIZE) / 2;
-    int qr_y = QR_TOP_MARGIN;
-    
     if (cfg->show_qr) {
-        char wifi_qr[256];
-        snprintf(wifi_qr, sizeof(wifi_qr), 
-                 "WIFI:T:WPA;S:%s;P:%s;;", cfg->ssid, cfg->password);
-        
-        // Try to draw QR, if it doesn't fit (returns 0), screen stays black
-        fb_draw_qr(fb, wifi_qr, qr_x, qr_y, QR_SIZE);
+        char ssid[sizeof(cfg->ssid) * 2], password[sizeof(cfg->password) * 2];
+        char wifi_qr[512];
+        wifi_escape(ssid, cfg->ssid);
+        wifi_escape(password, cfg->password);
+        snprintf(wifi_qr, sizeof(wifi_qr), "WIFI:T:%s;S:%s;P:%s;;",
+                 cfg->password[0] ? "WPA" : "nopass", ssid, password);
+        if (!fb_draw_qr(fb, wifi_qr, 0, 0, WIDTH))
+            fb_draw_text(fb, face, "Wi-Fi QR too large", 5, 64, 12);
+        return;
     }
-    // If no QR or QR too large: stay black (fb_init already cleared to black)
+    // The legacy non-QR page keeps its status labels on a black background.
     
     int fontsz = 12;
     int line1_y = HEIGHT - fontsz - 3;
@@ -230,6 +314,13 @@ void print_usage(const char *prog) {
     fprintf(stderr, "  -h HOST   Hostname\n");
     fprintf(stderr, "  -q        Show QR code (default: show logo)\n");
     fprintf(stderr, "  -u        Convert text to UPPERCASE\n");
+    fprintf(stderr, "  -d        Dashboard (battery, signal, IMEI, transfer rates)\n");
+    fprintf(stderr, "  -e        Battery percentage is a voltage estimate\n");
+    fprintf(stderr, "  -g NUM    Recent signal strength (0-100; -1 unknown)\n");
+    fprintf(stderr, "  -i IMEI   Current modem IMEI\n");
+    fprintf(stderr, "  -r RATE   Download rate label\n");
+    fprintf(stderr, "  -x RATE   Upload rate label\n");
+    fprintf(stderr, "  -f NAME   Traffic interface label\n");
 }
 
 
@@ -243,27 +334,43 @@ int main(int argc, char *argv[]) {
         .password = "password",
         .hostname = "Router",
         .show_qr = 0,
-        .uppercase = 0
+        .uppercase = 0,
+        .signal = -1,
+        .download = "--",
+        .upload = "--",
+        .interface = "No interface"
     };
     
     int opt;
-    while ((opt = getopt(argc, argv, "b:cn:t:s:p:h:qu")) != -1) {
+    while ((opt = getopt(argc, argv, "b:cn:t:s:p:h:qudei:g:r:x:f:")) != -1) {
         switch (opt) {
             case 'b': cfg.battery = atoi(optarg); break;
             case 'c': cfg.charging = 1; break;
-            case 'n': strncpy(cfg.operator, optarg, 31); break;
-            case 't': strncpy(cfg.network_type, optarg, 7); break;
-            case 's': strncpy(cfg.ssid, optarg, 63); break;
-            case 'p': strncpy(cfg.password, optarg, 63); break;
-            case 'h': strncpy(cfg.hostname, optarg, 31); break;
+            case 'n': snprintf(cfg.operator, sizeof(cfg.operator), "%s", optarg); break;
+            case 't': snprintf(cfg.network_type, sizeof(cfg.network_type), "%s", optarg); break;
+            case 's': snprintf(cfg.ssid, sizeof(cfg.ssid), "%s", optarg); break;
+            case 'p': snprintf(cfg.password, sizeof(cfg.password), "%s", optarg); break;
+            case 'h': snprintf(cfg.hostname, sizeof(cfg.hostname), "%s", optarg); break;
             case 'q': cfg.show_qr = 1; break;
             case 'u': cfg.uppercase = 1; break;
+            case 'd': cfg.dashboard = 1; break;
+            case 'e': cfg.battery_estimated = 1; break;
+            case 'g': cfg.signal = atoi(optarg); break;
+            case 'i': snprintf(cfg.imei, sizeof(cfg.imei), "%s", optarg); break;
+            case 'r': snprintf(cfg.download, sizeof(cfg.download), "%s", optarg); break;
+            case 'x': snprintf(cfg.upload, sizeof(cfg.upload), "%s", optarg); break;
+            case 'f': snprintf(cfg.interface, sizeof(cfg.interface), "%s", optarg); break;
             default:
                 print_usage(argv[0]);
                 return 1;
         }
     }
     
+    if (cfg.battery < 0) cfg.battery = -1;
+    if (cfg.battery > 100) cfg.battery = 100;
+    if (cfg.signal < 0) cfg.signal = -1;
+    if (cfg.signal > 100) cfg.signal = 100;
+
     FT_Library ft;
     if (FT_Init_FreeType(&ft)) {
         fprintf(stderr, "FreeType init failed\n");
@@ -274,6 +381,7 @@ int main(int argc, char *argv[]) {
     const char *fonts[] = {
         "/usr/share/fonts/ttf-dejavu/DejaVuSans.ttf",
         "/usr/share/fonts/ttf-dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         NULL
     };
     
@@ -294,7 +402,12 @@ int main(int argc, char *argv[]) {
     Framebuffer fb;
     generate_display(&fb, &cfg, face);
     
-    fwrite(fb.data, sizeof(uint16_t), WIDTH * HEIGHT, stdout);
+    if (fwrite(fb.data, sizeof(uint16_t), WIDTH * HEIGHT, stdout) != WIDTH * HEIGHT) {
+        fprintf(stderr, "Framebuffer output failed\n");
+        FT_Done_Face(face);
+        FT_Done_FreeType(ft);
+        return 1;
+    }
     
     FT_Done_Face(face);
     FT_Done_FreeType(ft);

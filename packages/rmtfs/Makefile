@@ -4,7 +4,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=rmtfs
 PKG_VERSION:=1.0
-PKG_RELEASE:=1
+PKG_RELEASE:=4
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/linux-msm/rmtfs
@@ -30,10 +30,16 @@ define Build/Compile
 endef
 
 define Package/rmtfs/install
+	$(INSTALL_DIR) $(1)/etc/config
+	$(INSTALL_CONF) ./files/rmtfs.config $(1)/etc/config/rmtfs
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/rmtfs $(1)/usr/sbin/
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/rmtfs.init $(1)/etc/init.d/rmtfs
+endef
+
+define Package/rmtfs/conffiles
+/etc/config/rmtfs
 endef
 
 $(eval $(call BuildPackage,rmtfs))

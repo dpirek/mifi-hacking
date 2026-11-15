@@ -1,0 +1,168 @@
+/* Shared status, network and system page components. */
+body.mifi-shell {
+	--mifi-ink: #172740;
+	--mifi-muted: #627086;
+	--mifi-line: #dce3ed;
+	--mifi-blue: #244fce;
+	font-size: 14px;
+	line-height: 1.6;
+}
+.mifi-shell #maincontent .hidden,
+.mifi-shell .modal .hidden { display: none !important; }
+.mifi-shell #maincontent > h2,
+.mifi-shell #maincontent .cbi-map > h2,
+.mifi-shell #maincontent #view > h2 {
+	margin: 0 0 20px; padding: 0; border: 0;
+	color: var(--mifi-ink); font-size: 30px; font-weight: 700;
+	line-height: 1.25; letter-spacing: -.035em;
+}
+.mifi-shell #maincontent .cbi-map-descr,
+.mifi-shell #maincontent .cbi-section-descr {
+	margin: 0 0 22px; color: var(--mifi-muted); font-size: 14px; line-height: 1.7;
+}
+.mifi-shell #maincontent .cbi-section,
+.mifi-shell .modal .cbi-section {
+	min-width: 0; margin: 0 0 20px; padding: 22px;
+	border: 1px solid var(--mifi-line); border-radius: 16px;
+	background: #fff; box-shadow: 0 3px 12px #1b335005; box-sizing: border-box;
+}
+.mifi-shell #maincontent .cbi-section .cbi-section,
+.mifi-shell .modal .cbi-section .cbi-section { padding: 16px; box-shadow: none; }
+.mifi-shell #maincontent .cbi-section > h3,
+.mifi-shell #maincontent .cbi-section h3,
+.mifi-shell #maincontent .cbi-section > legend,
+.mifi-shell .modal h3 {
+	margin: 0 0 18px; padding: 0; border: 0;
+	color: var(--mifi-ink); font-size: 19px; font-weight: 650;
+	letter-spacing: -.02em; line-height: 1.4;
+}
+.mifi-shell #maincontent .cbi-title { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.mifi-shell #maincontent .cbi-title > h3 { display: flex; flex: 1; align-items: center; justify-content: space-between; gap: 12px; width: 100%; margin: 0; }
+.mifi-shell #maincontent .cbi-title .label { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; float: none; padding: 5px 12px; border-radius: 9px; border: 1px solid #e4eaf3; background: #f7f9fc; color: #627086; font-size: 10px; font-weight: 650; letter-spacing: .04em; text-shadow: none; box-sizing: border-box; }
+.mifi-shell #maincontent .cbi-title .label:hover { color: var(--mifi-blue); background: #edf2ff; }
+.mifi-shell #maincontent .table { width: 100%; max-width: 100%; margin: 0; border-spacing: 0; border-collapse: separate; }
+.mifi-shell #maincontent .table .th,
+.mifi-shell #maincontent .table .td { min-width: 0; padding: 12px 10px; border-color: #e7ecf3; background: transparent; color: var(--mifi-ink); font-size: 13px; line-height: 1.65; vertical-align: middle; overflow-wrap: anywhere; }
+.mifi-shell #maincontent .table .th { color: var(--mifi-muted); font-size: 11px; font-weight: 650; text-transform: none; }
+.mifi-shell #maincontent .table .tr:last-child > .td { border-bottom: 0; }
+.mifi-shell #maincontent .table .tr:nth-child(2n) { background: #f8fafd; }
+.mifi-shell #maincontent .cbi-value { padding: 13px 0; border-bottom: 1px solid #edf1f6; box-sizing: border-box; }
+.mifi-shell #maincontent .cbi-value:last-child { border-bottom: 0; }
+.mifi-shell #maincontent .cbi-value-title { color: var(--mifi-ink); font-size: 13px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere; }
+.mifi-shell #maincontent .cbi-value-field { min-width: 0; }
+.mifi-shell #maincontent .cbi-value-description { margin-top: 8px; color: var(--mifi-muted); font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
+.mifi-shell #maincontent input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="button"]):not([type="submit"]),
+.mifi-shell #maincontent select,
+.mifi-shell .modal input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="button"]):not([type="submit"]),
+.mifi-shell .modal select {
+	min-width: 0; max-width: 100%; min-height: 46px; padding: 10px 12px;
+	border: 1px solid #c8d2e1; border-radius: 10px; background: #fbfcfe;
+	color: var(--mifi-ink); font-size: 16px; line-height: 1.5;
+	box-shadow: none; box-sizing: border-box;
+}
+.mifi-shell #maincontent input[type="checkbox"], .mifi-shell #maincontent input[type="radio"],
+.mifi-shell .modal input[type="checkbox"], .mifi-shell .modal input[type="radio"] { width: 19px; height: 19px; accent-color: var(--mifi-blue); vertical-align: middle; }
+.mifi-shell #maincontent .cbi-dropdown,
+.mifi-shell .modal .cbi-dropdown { min-height: 46px; max-width: 100%; border-radius: 10px; border-color: #c8d2e1; box-shadow: none; box-sizing: border-box; }
+.mifi-shell #maincontent textarea,
+.mifi-shell #maincontent pre,
+.mifi-shell .modal textarea { max-width: 100%; width: 100%; box-sizing: border-box; padding: 14px; border: 1px solid var(--mifi-line); border-radius: 12px; background: #fbfcfe; color: #243954; font: 13px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.mifi-shell #maincontent pre { overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 65vh; }
+.mifi-shell #maincontent input:focus-visible,
+.mifi-shell #maincontent select:focus-visible,
+.mifi-shell #maincontent textarea:focus-visible,
+.mifi-shell #maincontent button:focus-visible,
+.mifi-shell .modal input:focus-visible,
+.mifi-shell .modal button:focus-visible { outline: 3px solid #7da3fa; outline-offset: 2px; }
+.mifi-shell #maincontent .cbi-button,
+.mifi-shell #maincontent .btn,
+.mifi-shell .modal .cbi-button,
+.mifi-shell .modal .btn { min-height: 44px; height: auto; max-width: 100%; padding: 10px 14px; border: 1px solid #c8d2e1; border-radius: 10px; background: #fff; color: #243954; font-size: 13px; font-weight: 600; line-height: 1.5; box-shadow: none; text-shadow: none; white-space: normal; box-sizing: border-box; }
+.mifi-shell #maincontent .cbi-button:hover,
+.mifi-shell .modal .cbi-button:hover { background: #f1f5fc; border-color: #a8b8d1; }
+.mifi-shell #maincontent .cbi-button-positive,
+.mifi-shell #maincontent .cbi-button-apply,
+.mifi-shell #maincontent .cbi-button-save,
+.mifi-shell #maincontent .cbi-button-action,
+.mifi-shell .modal .cbi-button-positive,
+.mifi-shell .modal .cbi-button-apply { color: #fff; background: var(--mifi-blue); border-color: var(--mifi-blue); }
+.mifi-shell #maincontent .cbi-button-negative,
+.mifi-shell .modal .cbi-button-negative { color: #a52c3b; border-color: #e7cbd0; background: #fff6f5; }
+.mifi-shell #maincontent .cbi-button:disabled,
+.mifi-shell .modal .cbi-button:disabled { color: #8994a7; background: #edf0f5; border-color: #e3e7ed; }
+.mifi-shell .cbi-page-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin: 20px 0; padding: 16px 0 0; background: transparent; border-top: 1px solid var(--mifi-line); }
+.mifi-shell .cbi-page-actions > * { margin: 0 !important; }
+.mifi-shell #tabmenu .tabs,
+.mifi-shell #maincontent .cbi-tabmenu,
+.mifi-shell .modal .cbi-tabmenu { display: flex; flex-wrap: nowrap; gap: 6px; max-width: 100%; margin: 0 0 20px; padding: 5px; border: 1px solid var(--mifi-line); border-radius: 12px; background: #eaf0f8; overflow-x: auto; box-sizing: border-box; }
+.mifi-shell #tabmenu .tabs { min-width: 0; }
+.mifi-shell #tabmenu .tabs > li,
+.mifi-shell #maincontent .cbi-tabmenu > li,
+.mifi-shell .modal .cbi-tabmenu > li { display: block; float: none; flex: 0 0 auto; margin: 0; padding: 0; border: 0; border-radius: 8px; background: none; }
+.mifi-shell #tabmenu .tabs > li > a,
+.mifi-shell #maincontent .cbi-tabmenu > li > a,
+.mifi-shell .modal .cbi-tabmenu > li > a { display: flex; align-items: center; min-height: 44px; padding: 9px 15px; border: 0; border-radius: 8px; color: #627086; text-decoration: none; font-size: 13px; font-weight: 600; line-height: 1.5; box-sizing: border-box; }
+.mifi-shell #tabmenu .tabs > li.active > a,
+.mifi-shell #maincontent .cbi-tabmenu > li.cbi-tab > a,
+.mifi-shell .modal .cbi-tabmenu > li.cbi-tab > a { background: #fff; color: var(--mifi-blue); box-shadow: 0 2px 5px #2439540a; }
+.mifi-shell .modal { max-width: calc(100vw - 28px) !important; max-height: calc(100vh - 32px); padding: 22px; border: 1px solid var(--mifi-line); border-radius: 16px; background: #f7f9fc; color: var(--mifi-ink); overflow: auto; box-sizing: border-box; }
+.mifi-shell .alert-message { padding: 15px 18px; border-radius: 12px; font-size: 14px; line-height: 1.6; box-sizing: border-box; }
+.mifi-shell #maincontent .ifacebox { min-width: 0; max-width: 100%; border: 1px solid var(--mifi-line); border-radius: 12px; box-shadow: none; }
+.mifi-shell #maincontent .ifacebox-head { padding: 8px 12px; border-radius: 11px 11px 0 0; }
+.mifi-shell #maincontent .ifacebox-body { padding: 12px; }
+.mifi-shell #maincontent .ifacebadge { max-width: 100%; box-sizing: border-box; border-radius: 9px; border-color: var(--mifi-line); }
+.mifi-shell #maincontent .cbi-progressbar { position: relative; height: 8px; min-height: 8px; margin: 24px 0 8px; padding: 0; border: 0; border-radius: 999px; background: #e8eef8; overflow: visible; }
+.mifi-shell #maincontent .cbi-progressbar > div { height: 8px; min-height: 8px; border-radius: 999px; background: #3567d8; }
+.mifi-shell #maincontent .cbi-progressbar::after { position: absolute; top: -23px; left: 0; right: auto; width: 100%; color: #52647f; font-size: 12px; line-height: 20px; font-weight: 500; text-align: left; text-shadow: none; white-space: normal; }
+.mifi-shell #maincontent svg { max-width: 100%; }
+.mifi-shell #maincontent iframe { max-width: 100%; }
+.mifi-shell[data-page="admin-status-overview"] #view { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+.mifi-shell[data-page="admin-status-overview"] #view > .cbi-section { margin-bottom: 0; }
+.mifi-shell[data-page="admin-status-overview"] .includes { margin-top: 18px; }
+.mifi-shell[data-page="admin-status-overview"] #view > .cbi-section:first-child .table .td:first-child { color: var(--mifi-muted); font-size: 12px; }
+@media (min-width: 1180px) {
+	.mifi-shell[data-page="admin-status-overview"] #view { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+	.mifi-shell[data-page="admin-status-overview"] #view > .cbi-section:first-child { grid-column: 1 / -1; }
+	.mifi-shell[data-page="admin-status-overview"] #view > .cbi-section:first-child .table tbody { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 26px; }
+	.mifi-shell[data-page="admin-status-overview"] #view > .cbi-section:first-child .table .tr { display: block; min-width: 0; background: none; }
+	.mifi-shell[data-page="admin-status-overview"] #view > .cbi-section:first-child .table .td { display: block; width: 100%; padding: 4px 0 12px; }
+	.mifi-shell[data-page="admin-status-overview"] #view > .cbi-section:first-child .table .td:first-child { padding: 12px 0 0; border: 0; }
+}
+@media (max-width: 899px) {
+	.mifi-shell #maincontent > h2,
+	.mifi-shell #maincontent .cbi-map > h2,
+	.mifi-shell #maincontent #view > h2 { font-size: 27px; margin-bottom: 20px; }
+	.mifi-shell #maincontent .cbi-section,
+	.mifi-shell .modal .cbi-section { padding: 18px; border-radius: 14px; }
+	.mifi-shell #maincontent .cbi-value { display: block; padding: 15px 0; }
+	.mifi-shell #maincontent .cbi-value-title { display: block; float: none; width: auto; margin: 0 0 9px; padding: 0; text-align: left; }
+	.mifi-shell #maincontent .cbi-value-field { display: block; width: auto; min-width: 0; margin-left: 0; padding: 0; }
+	.mifi-shell #maincontent .cbi-value-field > input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+	.mifi-shell #maincontent .cbi-value-field > select,
+	.mifi-shell #maincontent .cbi-value-field > .cbi-dropdown { width: 100%; max-width: 100%; }
+	.mifi-shell #maincontent .table,
+	.mifi-shell #maincontent .table > tbody { display: block; width: 100%; min-width: 0; }
+	.mifi-shell #maincontent .table .tr { display: flex; flex-wrap: wrap; align-items: flex-start; width: 100%; min-width: 0; margin: 0 0 12px; padding: 12px; border: 1px solid #e5ebf4; border-radius: 11px; background: #f8fafd; box-sizing: border-box; }
+	.mifi-shell #maincontent .table .td { display: block; flex: 1 1 45%; width: auto !important; max-width: 100%; min-width: 0 !important; padding: 8px; border: 0; white-space: normal !important; overflow-wrap: anywhere; box-sizing: border-box; text-align: left; }
+	.mifi-shell #maincontent .table .td > span { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+	.mifi-shell #maincontent .table .td[data-title]::before { content: attr(data-title); display: block; margin: 0 0 4px; color: var(--mifi-muted); font-size: 11px; font-weight: 600; line-height: 1.5; }
+	.mifi-shell #maincontent .table .td[colspan],
+	.mifi-shell #maincontent .table .td.cbi-section-actions { flex-basis: 100%; width: 100% !important; min-width: 0 !important; }
+	.mifi-shell #maincontent .table .td.cbi-section-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-start; }
+	.mifi-shell #maincontent .cbi-section-actions .cbi-button { margin: 0; }
+	.mifi-shell #maincontent .table .tr.table-titles,
+	.mifi-shell #maincontent .table .tr.cbi-section-table-titles,
+	.mifi-shell #maincontent .table .tr.cbi-section-table-descr { display: flex !important; position: absolute; width: 1px; height: 1px; padding: 0; margin: 0; border: 0; overflow: hidden; clip-path: inset(50%); pointer-events: none; }
+	.mifi-shell #maincontent .table .td[data-name="_ifacestat"],
+	.mifi-shell #maincontent .table .td[data-name="_ifacebox"],
+	.mifi-shell #maincontent .table .td[data-name="_stat"] { flex-basis: 100%; }
+	.mifi-shell #maincontent .cbi-page-actions > .cbi-button { flex: 1 1 120px; }
+	.mifi-shell[data-page="admin-status-overview"] #view > .cbi-section:first-child .table .tr { display: block; padding: 10px 0; margin: 0; border: 0; border-bottom: 1px solid #edf1f6; border-radius: 0; background: none; }
+	.mifi-shell[data-page="admin-status-overview"] #view > .cbi-section:first-child .table .td { display: block; width: 100% !important; padding: 2px 0; font-size: 14px; }
+	.mifi-shell[data-page="admin-status-overview"] #view .table .td[width="33%"] { flex-basis: 100%; color: var(--mifi-muted); font-size: 12px; }
+	.mifi-shell[data-page="admin-status-overview"] #view .table .td[width="33%"] + .td { flex-basis: 100%; }
+	.mifi-shell[data-page="admin-network-diagnostics"] #view > .cbi-map > .table .tr { display: block; padding: 0; border: 0; background: none; }
+	.mifi-shell[data-page="admin-network-diagnostics"] #view > .cbi-map > .table .td { width: 100% !important; padding: 18px; margin: 0 0 16px; border: 1px solid var(--mifi-line); border-radius: 14px; background: #fff; }
+	.mifi-shell[data-page="admin-network-diagnostics"] #view > .cbi-map > .table input { width: 100%; }
+	.mifi-shell[data-page="admin-network-diagnostics"] .diag-action { display: block; margin-top: 10px; }
+}

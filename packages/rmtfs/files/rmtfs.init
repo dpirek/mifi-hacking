@@ -29,6 +29,9 @@ load_qrtr_modules() {
 }
 
 start_service() {
+	local read_only
+	config_load rmtfs
+	config_get_bool read_only main read_only 1
 	populate_disk_labels
 	load_qrtr_modules
 
@@ -37,17 +40,20 @@ start_service() {
 	procd_set_param oom_score_adj $OOM_ADJ
 
 	# Run in foreground so procd can supervise:
-	# -P: POSIX shared memory backend
-	# -r: allow read-only mode fallback if storage is not writable
-	# -s: enable shared memory regions as needed
-	procd_set_param command "$PROG" -P -r -s
+	# -P: use the raw EFS partitions by GPT label
+	# -r: keep storage changes in memory; this is not a write-failure fallback.
+	# -s: synchronize startup/shutdown with the modem remoteproc instance.
+	procd_set_param command "$PROG" -P -s
+	[ "$read_only" = 1 ] && procd_append_param command -r
 
 	# Auto-restart on crash: (threshold_ms timeout_s retries)
 	procd_set_param respawn 3600 5 5
+	# Allow the modem's filesystem shutdown handshake to complete.
+	procd_set_param term_timeout 30
 
 	# Optional: stream stdout/stderr into logd (visible via logread)
 	# procd_set_param stdout 1
-	# procd_set_param stderr 1
+	procd_set_param stderr 1
 
 	# Optional: enable core dumps for debugging segfaults
 	# procd_set_param limits core="unlimited"
@@ -55,7 +61,31 @@ start_service() {
 	procd_close_instance
 }
 
-stop_service() {
-	# procd will send SIGTERM; this is a gentle extra safeguard
-	killall rmtfs 2>/dev/null || true
+# procd sends SIGTERM itself. A second signal makes rmtfs abort its handshake.
+
+rmtfs_running() {
+	local pid
+	for pid in $(pidof rmtfs); do
+		case "$(readlink "/proc/$pid/exe")" in
+			"$PROG"|"$PROG (deleted)") return 0 ;;
+		esac
+	done
+	return 1
+}
+
+# procd stop is asynchronous. Do not start another rmtfs while the old one is
+# still stopping the modem and serving its final filesystem requests.
+restart() {
+	stop || return 1
+	local waited=0
+	while rmtfs_running; do
+		[ "$waited" -lt 35 ] || {
+			logger -t rmtfs 'Previous daemon did not finish shutting down; refusing overlapping restart'
+			return 1
+		}
+		sleep 1
+		waited=$((waited + 1))
+	done
+	sync
+	start
 }

@@ -1,0 +1,7 @@
+{
+  "luci-app-sms": {
+    "description": "Read and send SMS messages",
+    "read": {"ubus": {"sms": ["list", "read"]}},
+    "write": {"ubus": {"sms": ["send"]}}
+  }
+}

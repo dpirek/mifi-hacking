@@ -1,0 +1,173 @@
+--- a/rmtfs.c
++++ b/rmtfs.c
+@@ -28,6 +28,30 @@
+ static struct rmtfs_mem *rmem;
+ static sig_atomic_t sig_int_count;
+ 
++static volatile sig_atomic_t sync_pending;
++static struct { bool active; uint32_t node, port; } sync_clients[10];
++
++static void sync_signal(int signo) { (void)signo; sync_pending = 1; }
++
++static void send_force_sync(int sock)
++{
++    for (int i = 0; i < 10; i++) {
++        if (!sync_clients[i].active) continue;
++        bool sent = false;
++        for (int j = 0; j < i; j++)
++            if (sync_clients[j].active && sync_clients[j].node == sync_clients[i].node && sync_clients[j].port == sync_clients[i].port) sent = true;
++        if (sent) continue;
++        struct rmtfs_force_sync request = {0};
++        for (int j = i; j < 10; j++)
++            if (sync_clients[j].active && sync_clients[j].node == sync_clients[i].node && sync_clients[j].port == sync_clients[i].port)
++                request.caller_id[request.caller_id_len++] = j;
++        DEFINE_QRTR_PACKET(packet, 256);
++        int length = qmi_encode_message(&packet, QMI_INDICATION, QMI_RMTFS_FORCE_SYNC_IND, 0, &request, rmtfs_force_sync_ei);
++        int result = length < 0 ? length : qrtr_sendto(sock, sync_clients[i].node, sync_clients[i].port, packet.data, packet.data_len);
++        fprintf(stderr, "[force-sync] clients=%zu peer=%u:%u result=%d\n", request.caller_id_len, sync_clients[i].node, sync_clients[i].port, result);
++    }
++}
++
+ static bool dbgprintf_enabled;
+ static void dbgprintf(const char *fmt, ...)
+ {
+@@ -76,6 +100,11 @@
+ 	}
+ 
+ 	caller_id = storage_get_caller_id(rmtfd);
++    if (caller_id >= 0 && caller_id < 10) {
++        sync_clients[caller_id].active = true;
++        sync_clients[caller_id].node = pkt->node;
++        sync_clients[caller_id].port = pkt->port;
++    }
+ 	resp.caller_id = caller_id;
+ 	resp.caller_id_valid = true;
+ 
+@@ -122,6 +151,7 @@
+ 		goto respond;
+ 	}
+ 
++	if (req.caller_id < 10) sync_clients[req.caller_id].active = false;
+ 	storage_close(rmtfd);
+ 	rmtfs_mem_free(rmem);
+ 
+@@ -221,8 +251,8 @@
+ 	dbgprintf("[RMTFS] iovec %d, %sforced => (%d:%d)\n", caller_id, force ? "" : "not ",
+ 							     resp.result.result, resp.result.error);
+ 
+-	if (is_write)
+-		storage_sync(rmtfd);
++	if (is_write && rmtfd && storage_sync(rmtfd) < 0)
++        qmi_result_error(&resp.result, QMI_RMTFS_ERR_INTERNAL);
+ 
+ 	for (i = 0; i < num_entries; i++) {
+ 		dbgprintf("[RMTFS]       %s %d:%d 0x%x\n", is_write ? "write" : "read",
+@@ -449,6 +479,7 @@
+ 		rproc_start();
+ 
+ 	for (;;) {
++        if (sync_pending) { sync_pending = 0; send_force_sync(rmtfs_fd); }
+ 		if (sig_int_count == 1 && !sig_int_handled) {
+ 			if (rprocfd < 0)
+ 				break;
+@@ -552,6 +583,8 @@
+ 
+ 	sigaction(SIGINT, &action, NULL);
+ 	sigaction(SIGTERM, &action, NULL);
++    action.sa_handler = sync_signal;
++    sigaction(SIGUSR1, &action, NULL);
+ 
+ 	rmem = rmtfs_mem_open();
+ 	if (!rmem)
+--- a/qmi_rmtfs.c
++++ b/qmi_rmtfs.c
+@@ -244,7 +244,7 @@
+ 		.offset = offsetof(struct rmtfs_force_sync, caller_id_len),
+ 	},
+ 	{
+-		.data_type = QMI_UNSIGNED_1_BYTE,
++		.data_type = QMI_UNSIGNED_4_BYTE,
+ 		.elem_len = 10,
+ 		.elem_size = sizeof(uint32_t),
+ 		.array_type = VAR_LEN_ARRAY,
+--- a/storage.c
++++ b/storage.c
+@@ -6,6 +6,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <unistd.h>
++#include <time.h>
+ #include "rmtfs.h"
+ 
+ #define MAX_CALLERS 10
+@@ -33,7 +34,28 @@
+ };
+ 
+ static const char *storage_dir = "/boot";
++#ifndef RMTFS_STORAGE_STATE
++#define RMTFS_STORAGE_STATE "/var/run/rmtfs-storage-state"
++#endif
+ static int storage_read_only;
++static unsigned long long storage_write_seq, storage_write_bytes, storage_ack_bytes;
++static int storage_last_error;
++
++/* Publish acknowledged writes, not queued pwrite calls. /var/run is tmpfs. */
++static void storage_publish_state(void)
++{
++    struct timespec now;
++    clock_gettime(CLOCK_MONOTONIC, &now);
++    FILE *file = fopen(RMTFS_STORAGE_STATE ".new", "w");
++    if (!file) return;
++    fprintf(file, "1 %ld %llu %llu %lld %d %d\n", (long)getpid(),
++            storage_write_seq, storage_ack_bytes,
++            (long long)now.tv_sec * 1000 + now.tv_nsec / 1000000,
++            storage_read_only, storage_last_error);
++    if (fclose(file) == 0)
++        rename(RMTFS_STORAGE_STATE ".new", RMTFS_STORAGE_STATE);
++}
++
+ static int storage_use_partitions;
+ 
+ static const struct partition partition_table[] = {
+@@ -71,6 +93,7 @@
+ 		rmtfds[i].shadow_buf = NULL;
+ 	}
+ 
++	storage_publish_state();
+ 	return 0;
+ }
+ 
+@@ -221,8 +244,15 @@
+ 	size_t new_len = offset + nbyte;
+ 	void *new_buf;
+ 
+-	if (!storage_read_only)
+-		return pwrite(rmtfd->fd, buf, nbyte, offset);
++	if (!storage_read_only) {
++        ssize_t result = pwrite(rmtfd->fd, buf, nbyte, offset);
++        if (result > 0) storage_write_bytes += result;
++        if (result != (ssize_t)nbyte) {
++            storage_last_error = result < 0 ? errno : EIO;
++            storage_publish_state();
++        }
++        return result;
++    }
+ 
+ 	if (new_len >= STORAGE_MAX_SIZE) {
+ 		fprintf(stderr, "write to %zd bytes exceededs max size\n", new_len);
+@@ -251,7 +281,14 @@
+ 	if (storage_read_only)
+ 		return 0;
+ 	
+-	return fdatasync(rmtfd->fd);
++    int result = fdatasync(rmtfd->fd);
++    if (result < 0) storage_last_error = errno;
++    else if (storage_write_bytes > storage_ack_bytes) {
++        storage_write_seq++;
++        storage_ack_bytes = storage_write_bytes;
++    }
++    storage_publish_state();
++    return result;
+ }
+ 
+ static int storage_populate_shadow_buf(struct rmtfd *rmtfd, const char *file)

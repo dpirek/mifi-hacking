@@ -1,0 +1,11 @@
+--- a/rmtfs.c
++++ b/rmtfs.c
+@@ -565,7 +565,7 @@ int main(int argc, char **argv)
+ 
+ 	do {
+ 		ret = run_rmtfs(rprocfd);
+-	} while (ret == -ENETRESET);
++	} while (ret == -ENETRESET && !sig_int_count);
+ 
+ 	storage_exit();
+ close_rmtfs_mem:

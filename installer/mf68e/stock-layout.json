@@ -1,0 +1,188 @@
+[
+  {
+    "number": 1,
+    "name": "modem",
+    "start_sector": 131072,
+    "sectors": 131072
+  },
+  {
+    "number": 2,
+    "name": "sbl1",
+    "start_sector": 262144,
+    "sectors": 1024
+  },
+  {
+    "number": 3,
+    "name": "sbl1bak",
+    "start_sector": 263168,
+    "sectors": 1024
+  },
+  {
+    "number": 4,
+    "name": "aboot",
+    "start_sector": 393216,
+    "sectors": 2048
+  },
+  {
+    "number": 5,
+    "name": "abootbak",
+    "start_sector": 395264,
+    "sectors": 2048
+  },
+  {
+    "number": 6,
+    "name": "rpm",
+    "start_sector": 524288,
+    "sectors": 1024
+  },
+  {
+    "number": 7,
+    "name": "rpmbak",
+    "start_sector": 525312,
+    "sectors": 1024
+  },
+  {
+    "number": 8,
+    "name": "tz",
+    "start_sector": 526336,
+    "sectors": 1024
+  },
+  {
+    "number": 9,
+    "name": "tzbak",
+    "start_sector": 527360,
+    "sectors": 1024
+  },
+  {
+    "number": 10,
+    "name": "hyp",
+    "start_sector": 528384,
+    "sectors": 1024
+  },
+  {
+    "number": 11,
+    "name": "hypbak",
+    "start_sector": 529408,
+    "sectors": 1024
+  },
+  {
+    "number": 12,
+    "name": "pad",
+    "start_sector": 530432,
+    "sectors": 2048
+  },
+  {
+    "number": 13,
+    "name": "modemst1",
+    "start_sector": 532480,
+    "sectors": 3072
+  },
+  {
+    "number": 14,
+    "name": "modemst2",
+    "start_sector": 535552,
+    "sectors": 3072
+  },
+  {
+    "number": 15,
+    "name": "misc",
+    "start_sector": 538624,
+    "sectors": 2048
+  },
+  {
+    "number": 16,
+    "name": "fsc",
+    "start_sector": 540672,
+    "sectors": 2
+  },
+  {
+    "number": 17,
+    "name": "ssd",
+    "start_sector": 540674,
+    "sectors": 16
+  },
+  {
+    "number": 18,
+    "name": "splash",
+    "start_sector": 540690,
+    "sectors": 20480
+  },
+  {
+    "number": 19,
+    "name": "DDR",
+    "start_sector": 655360,
+    "sectors": 64
+  },
+  {
+    "number": 20,
+    "name": "fsg",
+    "start_sector": 655424,
+    "sectors": 3072
+  },
+  {
+    "number": 21,
+    "name": "sec",
+    "start_sector": 658496,
+    "sectors": 32
+  },
+  {
+    "number": 22,
+    "name": "boot",
+    "start_sector": 658528,
+    "sectors": 65536
+  },
+  {
+    "number": 23,
+    "name": "system",
+    "start_sector": 724064,
+    "sectors": 1638400
+  },
+  {
+    "number": 24,
+    "name": "persist",
+    "start_sector": 2490368,
+    "sectors": 65536
+  },
+  {
+    "number": 25,
+    "name": "keystore",
+    "start_sector": 2555904,
+    "sectors": 1024
+  },
+  {
+    "number": 26,
+    "name": "cache",
+    "start_sector": 2556928,
+    "sectors": 524288
+  },
+  {
+    "number": 27,
+    "name": "config",
+    "start_sector": 3081216,
+    "sectors": 1024
+  },
+  {
+    "number": 28,
+    "name": "recovery",
+    "start_sector": 3145728,
+    "sectors": 65536
+  },
+  {
+    "number": 29,
+    "name": "devinfo",
+    "start_sector": 3211264,
+    "sectors": 2048
+  },
+  {
+    "number": 30,
+    "name": "oem",
+    "start_sector": 3276800,
+    "sectors": 131072
+  },
+  {
+    "number": 31,
+    "name": "userdata",
+    "start_sector": 3407872,
+    "sectors": 4227039
+  }
+]

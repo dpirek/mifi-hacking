@@ -1,0 +1,4 @@
+# Private device backups and locally generated experimental installer bundles.
+/backups/
+/installer-output/
+__pycache__/

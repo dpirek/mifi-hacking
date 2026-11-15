@@ -1,0 +1,63 @@
+#!/bin/sh
+. /usr/share/libubox/jshn.sh
+
+error() {
+	json_init
+	json_add_string error "$1"
+	json_dump
+	exit 0
+}
+# Keep create + send within rpcd's execution timeout.
+mm() { mmcli --timeout=10 "$@"; }
+case "$1" in
+	list)
+		echo '{"list":{},"read":{"id":""},"send":{"number":"","text":""}}'
+		;;
+	call)
+		IFS= read -r input
+		jsonfilter -s "$input" -e '@' >/dev/null 2>&1 || error 'Invalid JSON request'
+		json_load "$input" || error 'Invalid JSON request'
+		case "$2" in
+			list)
+				result=$(mm -m any --messaging-list-sms -J 2>&1) || error "$result"
+				printf '%s\n' "$result"
+				;;
+			read)
+				json_get_var id id
+				case "$id" in ''|*[!0-9]*) error 'Invalid message ID' ;; esac
+				result=$(mm -s "$id" -J 2>&1) || error "$result"
+				printf '%s\n' "$result"
+				;;
+			send)
+				json_get_type kind number
+				[ "$kind" = string ] || error 'Recipient must be a string'
+				json_get_var number number
+				case "$number" in +*) digits=${number#+} ;; *) digits=$number ;; esac
+				case "$digits" in ''|*[!0-9]*) error 'Use digits and an optional leading + for the recipient' ;; esac
+				[ "${#digits}" -le 20 ] || error 'Recipient is too long'
+				json_get_type kind text
+				[ "$kind" = string ] || error 'Message must be a string'
+				json_get_var text text
+				[ -n "$text" ] && [ "${#text}" -le 4096 ] || error 'Enter a message of at most 4096 bytes'
+				# Private file avoids mmcli property-parser quoting and shell injection.
+				umask 077
+				dir=$(mktemp -d /tmp/luci-sms.XXXXXX) || error 'Could not prepare message'
+				trap 'rm -rf "$dir"' EXIT HUP INT TERM
+				printf '%s' "$text" > "$dir/text"
+				result=$(mm -m any "--messaging-create-sms=number=$number" "--messaging-create-sms-with-text=$dir/text" -J 2>&1) || error "$result"
+				json_load "$result" || error 'Could not parse created message; refresh before trying again'
+				json_select modem && json_select messaging || error 'Missing created message; refresh before trying again'
+				json_get_var path created-sms
+				case "$path" in /org/freedesktop/ModemManager1/SMS/*) id=${path##*/} ;; *) error 'Missing created message ID; refresh before trying again' ;; esac
+				case "$id" in ''|*[!0-9]*) error 'Invalid created message ID' ;; esac
+				result=$(mm -s "$id" --send 2>&1) || error "Sending message $id failed or timed out. Refresh and check its state before sending again. $result"
+				json_init
+				json_add_boolean ok 1
+				json_add_string id "$id"
+				json_dump
+				;;
+			*) error 'Unknown method' ;;
+		esac
+		;;
+	*) exit 1 ;;
+esac

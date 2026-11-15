@@ -1,33 +1,40 @@
 #!/bin/sh
+# A short press wakes status, a double press opens Wi-Fi QR, a 3s hold powers off.
+[ "${BUTTON:-power}" = power ] || exit 0
+FIFO=${POWER_BUTTON_FIFO:-$(uci -q get display.display.fifo)}
+FIFO=${FIFO:-/var/run/display.fifo}
+STATE=${POWER_BUTTON_STATE:-/var/run/power-button.last}
 
-[ "${ACTION}" = "released" ] || exit 0
-
-# Double-click Shutdown
-# Works standalone or with display-manager
-
-# Hardcoded values
-lockfile="/tmp/toff.lock"
-delay=1
-
-shutdown() {
-    logger -t poweroff "Powering off..."
-
-    sync
-    /sbin/poweroff
+show_display() {
+    [ -p "$FIFO" ] || return 0
+    # Never hang the button handler if the display daemon is unavailable.
+    (exec 9<>"$FIFO"; printf '%s\n' "$1" >&9) 2>/dev/null || :
 }
 
-touch_lock() {
-    touch "$lockfile"
-    sleep $delay
-    rm -f "$lockfile"
-}
-
-if [ -e "$lockfile" ]; then
-    rm -f "$lockfile"
-    sleep $delay
-    shutdown
-else
-    touch_lock &
-fi
-
+case "$ACTION" in
+    pressed)
+        show_display full
+        ;;
+    released)
+        case "$SEEN" in ''|*[!0-9]*) exit 0 ;; esac
+        if [ "$SEEN" -ge 3 ]; then
+            rm -f "$STATE"
+            logger -t power-button 'Long press: powering off'
+            sync
+            "${POWER_BUTTON_POWEROFF:-/sbin/poweroff}"
+            exit $?
+        fi
+        now=$(awk '{printf "%.0f\n", $1 * 100}' "${POWER_BUTTON_UPTIME:-/proc/uptime}")
+        previous=$(cat "$STATE" 2>/dev/null)
+        case "$previous" in ''|*[!0-9]*) previous=0 ;; esac
+        elapsed=$((now - previous))
+        if [ "$previous" -gt 0 ] && [ "$elapsed" -ge 0 ] && [ "$elapsed" -le 50 ]; then
+            rm -f "$STATE"
+            show_display wifi
+        else
+            printf '%s\n' "$now" > "$STATE"
+            show_display full
+        fi
+        ;;
+esac
 exit 0

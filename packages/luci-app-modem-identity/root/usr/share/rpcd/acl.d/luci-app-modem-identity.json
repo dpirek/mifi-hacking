@@ -1,0 +1,7 @@
+{
+  "luci-app-modem-identity": {
+    "description": "Read and change the modem IMEI",
+    "read": {"ubus": {"modem-identity": ["status"]}},
+    "write": {"ubus": {"modem-identity": ["change", "write_mode", "restore"]}}
+  }
+}
