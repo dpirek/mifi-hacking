@@ -1,11 +1,14 @@
 ![OpenWrt logo](https://raw.githubusercontent.com/openwrt/openwrt/refs/heads/main/include/logo.png)
 
-Modern OpenWrt build targeting MSM8916 devices with full modem, USB gadget, and WiFi support.
+OpenWrt build for MSM8916 devices, with modem, USB gadget, Wi-Fi and MiFi
+interface support. Hardware verification varies by device; see the comparison
+and validation notes below.
 
 ## Table of Contents
 
 - [About OpenWrt](#about-openwrt)
 - [Supported Devices](#supported-devices)
+- [Changes from original source](#changes-from-original-source)
 - [Features](#features)
 - [Prerequisites](#prerequisites)
 - [Building](#building)
@@ -26,12 +29,13 @@ OpenWrt Project is a Linux operating system targeting embedded devices. Instead 
 
 ## Supported Devices
 
-All devices use the Qualcomm MSM8916 SoC with 384 MB RAM and 4 GB eMMC.
+These profiles target Qualcomm MSM8916 devices. Partition layouts, memory and
+peripherals must be checked for the specific board.
 
 - **UZ801v3** (`yiming-uz801v3`) -- USB dongle form factor.
 - **UF02** (`generic-uf02`) -- USB dongle form factor, most likely with only asian bands. Can be somewhat changed via QPST and the `qcn` file from UZ801.
 
-- **MF68E** (`generic-mf68e`) -- MiFi with GC9107 display and battery monitoring; restored from the archived device support. Hardware validation is still required.
+- **MF68E** (`generic-mf68e`) -- MiFi with GC9107 display and battery monitoring; restored from the archived device support. Boot, display and IMEI persistence have been verified on the backed-up unit; peripheral and recovery validation remains incomplete.
 
 M9S device support remains archived in [TBR](TBR/readme.md).
 
@@ -49,6 +53,177 @@ OpenWrt 25.12.6 boot confirmed over SSH/HTTP. Full peripheral functionality and
 physical EDL recovery remain untested. Do not use the shared
 UZ801 EDL flasher for this unit. Hardware findings are recorded in
 [`device-info.md`](device-info.md).
+
+## Changes from original source
+
+The comparison baseline is this repository's initial commit, **`ca13ba8`**
+(`initial commit`). The changes described below were collected in **`65164c1`**
+(`refactor`). The original checkout already contained the MF68E target, GC9107
+support, USB gadget configuration, modem firmware extraction, VPN packages and
+UZ801/UF02 flashing support. This work extends that foundation with a tested
+MF68E installation path, device controls and LuCI applications.
+
+To inspect the implementation against the same baseline:
+
+```sh
+git diff --stat ca13ba8..65164c1
+git diff ca13ba8..65164c1 -- packages/rmtfs packages/modem-identity
+```
+
+### Source map and behavior changes
+
+| Area | Original behavior | Changes and source |
+| --- | --- | --- |
+| MF68E factory installation | Existing MF68E images expected an OpenWrt partition layout; the shared EDL flasher used UZ801 settings. | Added a device-specific boot-chain builder, GPT migration, bundle validation, verified flashing and recovery instructions in [`installer/mf68e/`](installer/mf68e/README.md). |
+| IMEI management | No native IMEI CLI or dedicated LuCI page. | Added [`packages/modem-identity/`](packages/modem-identity/README.md) and [`packages/luci-app-modem-identity/`](packages/luci-app-modem-identity/): read, validate, generate, back up, change, restore and verify an identity through DIAG NV item 550. |
+| Modem storage | `rmtfs` always used read-only backing storage, with a misleading comment about its `-r` option. | Added explicit read-only configuration, serialized restart, shutdown and storage-acknowledgement patches, and a pending-save guard in [`packages/rmtfs/`](packages/rmtfs/). |
+| SMS | No dedicated SMS page or RPC service. | Added **Network → SMS**, inbox/sent views, periodic refresh and compose/send controls in [`packages/luci-app-sms/`](packages/luci-app-sms/README.md). |
+| LuCI appearance | Upstream Bootstrap navigation and branding. | Added [`packages/luci-theme-mifi/`](packages/luci-theme-mifi/README.md): desktop sidebar, mobile drawer, custom login, active navigation, accessible focus handling and shared page styling. |
+| Device display | Logo/Wi-Fi QR page with basic operator, network, hostname and battery labels. | Added a live status dashboard, measured transfer rates, validated signal/battery readings, enlarged two-row IMEI and full-screen Wi-Fi QR in [`packages/router-display/`](packages/router-display/). |
+| Power button | Double-click shut down the router; a separate hotplug handler woke the display on every release. | One handler now owns gestures: single press wakes status, double press opens Wi-Fi QR, and a three-second hold followed by release shuts down. See [`rc.button.power`](packages/configs-mifi/files/rc.button.power). |
+| Build selection | MF68E build checks covered the existing configuration, display and framebuffer packages. | [`diffconfig_mf68e`](diffconfig_mf68e) selects the new IMEI, SMS and theme packages; [`devenv/build-mf68e.sh`](devenv/build-mf68e.sh) verifies they remain selected after `make defconfig`. |
+| Tests and records | The added features had no corresponding regression suites or device installation record. | Added installer, DIAG, storage, display, gesture, SMS and navigation tests, plus [`device-info.md`](device-info.md) and package-level documentation. |
+| Local artifacts | No exclusions for the new backup/build workflow. | [`.gitignore`](.gitignore) excludes private `backups/`, generated `installer-output/` and Python bytecode caches. |
+
+### MF68E installation and recovery
+
+The new installer is experimental and pinned to the backed-up unit identified in
+its [README](installer/mf68e/README.md). It is not a general installer for every
+router sold as MF68E. Its boot-chain builder pins source revisions and checks
+firmware provenance. Bundle preparation checks the original backup and loader,
+GPT CRCs and geometry, image hashes and payload fit before any hardware write.
+
+The migration reuses stock system storage for `rootfs` at partition 14 and
+userdata for `rootfs_data` at partition 15. It reorders GPT entries while
+preserving the physical locations of radio/calibration partitions, and allocates
+a larger TrustZone slot in an unused gap. It replaces the primary boot chain,
+boot and root filesystem and resets the overlay. Writes are individually read
+back and verified, with the primary GPT committed last. A journal records the
+operation; incomplete writes are not blindly retried.
+
+Preparation and validation are offline. Hardware writes require explicit device
+selection and `--write`. Recovery uses the unit's original full eMMC backup and
+tested loader. Physical EDL entry and full backup restoration remain untested.
+See the installer documentation before using these tools.
+
+### IMEI changes and the persistence fix
+
+The native C tool discovers the modem's DIAG RPMsg controller, validates the
+15-digit Luhn checksum and uses an expected-current-IMEI check to reject stale
+requests. Before writing, it saves the complete original NV item in a private,
+checksummed backup. It preserves the other NV bytes, sends one write, and checks
+all returned bytes. A timed-out write is an unknown outcome and is never retried
+automatically. Restore uses the same checks and backs up the value being replaced.
+No security unlock, arbitrary NV-item editor or raw radio-partition patch is used.
+
+**Generate IMEI** preserves the current eight-digit type allocation code,
+randomizes the six-digit serial using browser cryptographic randomness and
+calculates the check digit. It only fills the input; it does not change the modem
+or establish that the generated serial is globally unassigned.
+
+The page replaces the manual **Enable editing → refresh → change → finish →
+refresh** sequence with **enter/generate → Apply & restart → automatic
+verification**:
+
+1. Read the current identity again and prepare writable modem storage.
+2. Back up NV item 550, write the requested identity once and verify live readback.
+3. Record the storage daemon PID, acknowledged-write sequence and durable byte
+   count after readback; request its existing QMI force-sync indication.
+4. Wait for a later successful backing-store acknowledgement. The UI shows a
+   countdown for up to five minutes; modem startup has a separate readiness wait.
+5. Return storage to read-only mode, restart the modem and reread its actual IMEI.
+6. Report success only when the identity survives that restart.
+
+The important finding was that immediate NV readback preceded the actual disk
+write. In the observed case, the later write arrived about 90 seconds afterward.
+Restarting earlier discarded the change. The fix therefore waits for successful
+`fdatasync`, not a fixed sleep or a successful write response alone.
+
+The rmtfs patches also stop its `ENETRESET` recovery loop from restarting the
+modem during shutdown, add a controlled force-sync signal, correct the caller-ID
+encoding for that indication and propagate storage-sync failures. The init
+script waits for the old daemon to exit before starting another, allows its
+shutdown handshake to finish, and preserves `/etc/config/rmtfs` across upgrades.
+Read-only storage remains the default.
+
+RPC refuses a premature restart or another change while a save is pending. If
+the storage wait expires, it leaves the writable daemon running to preserve the
+live value. **Finish saving & restart** continues the wait without another NV
+write. The new value was verified through modem and full-router restarts with
+read-only storage and no startup reapply service. Full details are in the
+[IMEI package notes](packages/modem-identity/README.md).
+
+### Display and gesture details
+
+The default status page now shows battery/charging state, recent signal quality,
+network/operator, IMEI and download/upload rates. Battery capacity is read from
+sysfs; a voltage-derived fallback is marked as an estimate. Unknown or stale
+readings remain unknown. Transfer rates use counter deltas and monotonic time,
+with handling for missing interfaces, counter resets and interface changes.
+The traffic interface can be selected in `/etc/config/display`.
+
+All 15 IMEI digits fit in two enlarged, centered rows. The former bottom
+interface-name line is removed. Wi-Fi QR uses the full 128 × 128 panel, black
+modules on white, a quiet border and escaped credential characters. The QR page
+stays bright for 30 seconds, then dim for another 30 seconds by default. Page
+switching is temporary and does not repeatedly write the UCI configuration.
+
+The display manager refreshes while awake without resetting its dim/off timers,
+stops refreshing when off, cleans up timers/FIFO/PID state and renders a complete
+frame before updating the framebuffer. The package now installs shared metric
+helpers, declares ModemManager/jsonfilter dependencies, preserves display
+configuration and loads the correct configuration section when stopping.
+The old duplicate button hotplug dispatch is disabled; gesture state uses
+monotonic time, and a missing display reader cannot block the button handler.
+Power-on after shutdown still depends on the PMIC/bootloader and has not been
+verified remotely.
+
+### SMS, theme and validation boundaries
+
+SMS uses ModemManager rather than a second modem driver. Its RPC ACL separates
+reading and sending. Recipient and UTF-8 payload validation, private temporary
+text files, bounded requests and retained drafts handle errors without silently
+sending a message again. The page polls every 15 seconds. Real carrier sending
+and receipt of a new incoming message remain untested.
+
+The MiFi theme retains LuCI's native forms and permission-filtered menu data,
+while replacing the surrounding navigation and styling status, network and
+system pages consistently. Mobile navigation supports Escape, backdrop closing,
+focus return and inaccessible hidden content. Bootstrap remains available as a
+revert option. Theme and modem-identity layout checks cover mobile and desktop
+sizes; see each package's README for the precise checks performed.
+
+Regression suites cover installer geometry/readbacks and wrong-device rejection;
+DIAG framing, backups and failed writes; durable-storage acknowledgement versus
+read-only shadows and failed fsync; restart ordering; display metrics/timers and
+button gestures; IMEI UI deadlines/pending saves; SMS validation/errors; and theme
+navigation. Tests that need a compiler, prepared upstream rmtfs sources, an
+OpenWrt userspace or Playwright document those requirements in their package
+notes or test files. A mocked protocol or UI test does not establish carrier
+connectivity or physical recovery.
+
+### Source, images and the running device
+
+The source changes and the bundled firmware images are different artifacts.
+The tracked `bin/targets/msm89xx/msm8916/` manifest still lists `rmtfs 1.0-r1` and
+`router-display 1.0-r1` and does not contain the new IMEI, SMS or MiFi theme packages.
+Those images predate this change set. The running device received newer files
+through staged deployment; the firmware release string alone does not identify
+which custom packages are installed.
+
+Build a fresh MF68E image to include all selected source changes, or deploy the
+corresponding packages to an existing compatible installation. An upgrade clears
+custom overlay files outside the saved configuration, so preserve those files
+separately before using an older image. The tested sysupgrade retained the
+hostname, network configuration and SSH key; the previous custom overlay was
+subsequently restored from its backup.
+
+Hardware verification is specific to this unit: OpenWrt boot, SSH/HTTP, writable
+overlay, display rendering, a Wi-Fi AP interface and persistent IMEI changes were
+observed. Complete Wi-Fi/cellular data traffic, real SMS delivery, physical EDL
+recovery and full stock restoration remain separate validation tasks. Private
+backups and generated tools/binaries stay in the ignored local directories and
+are not a substitute for rebuilding the tracked source.
 
 ## Features
 
@@ -71,7 +246,8 @@ message have not been tested. See [SMS package notes](packages/luci-app-sms/READ
 The MF68E build now includes a native `modem-identity` CLI and
 **Network → Modem identity** LuCI page. They support IMEI validation, original-NV
 backups, requested NV item 550 changes, readback verification and restore.
-Persistent changes require explicitly enabling writable modem storage.
+Apply & restart temporarily enables writable storage and restores read-only
+mode after the save is acknowledged and verified.
 The **Generate IMEI** button fills the input with a random serial and valid Luhn
 check digit while preserving the current device's eight-digit type allocation
 code. Generation does not change the modem; use **Apply & restart** to save and verify it.
@@ -96,7 +272,11 @@ Power-on from shutdown is controlled by the PMIC/bootloader and remains
 unverified on this unit. The status display shows all IMEI digits in two enlarged
 rows and omits the traffic-interface footer.
 
-### Working Components
+### Base features inherited from the original source
+
+The original project advertises the following capabilities. They are not an
+end-to-end validation claim for every MF68E peripheral.
+
 - **Modem**: Fully functional with cellular connectivity
   - ModemManager Rx/Tx stats not displayed in LuCI (known issue)
 - **WiFi**: Complete wireless support
@@ -115,11 +295,18 @@ rows and omits the traffic-interface footer.
 
 ## Prerequisites
 
-- Docker installed on your system
+- An OpenWrt build environment and its native build dependencies, or Docker for
+  the supplied container workflow. Docker is optional.
 - Basic knowledge of Linux command line
 - For flashing: [edl tool](https://github.com/bkerler/edl)
 
 ## Building
+
+The commands below use the supplied Docker environment. The target and packages
+can also be integrated into a native OpenWrt build tree. The current MF68E helper
+uses container paths (`/repo` and `/home/builder/openwrt`); adapt those paths when
+building natively. See the [source/image distinction](#source-images-and-the-running-device)
+before reusing existing `bin/` artifacts.
 
 ### GitHub Actions (release builds)
 
@@ -177,7 +364,9 @@ docker compose run --rm builder bash /repo/devenv/build-mf68e.sh
 cd ..
 ```
 
-If the latest local build is already present, skip the build commands. Outputs
+If a fresh local build containing the required packages is already present, skip
+the build commands. Check its manifest: the tracked images currently predate the
+new features described above. Outputs
 are in `bin/targets/msm89xx/msm8916/`. Use
 `openwrt-msm89xx-msm8916-generic-mf68e-squashfs-sysupgrade.bin` for this update;
 `boot.img` and `system.img` are separate factory-installer payloads.
@@ -234,8 +423,8 @@ The SSH connection will close while the router writes the image and reboots.
 Leave power connected and allow several minutes for it to return. The default
 command requests configuration preservation. The project's upgrade hook clears
 the overlay, so manually installed packages and other files outside the saved
-configuration must be reinstalled or backed up separately. Configuration restore
-across an upgrade has not yet been verified on this unit.
+configuration must be reinstalled or backed up separately. The tested upgrade preserved the hostname, network configuration and SSH key;
+custom overlay additions needed separate restoration.
 
 For a clean installation, use `sysupgrade -n /tmp/mf68e-sysupgrade.bin` instead;
 this discards configuration, including passwords and network settings.
@@ -249,10 +438,9 @@ ssh root@192.168.1.1 'ubus call system board; df -h /overlay'
 
 If you preserved a different LAN address, reconnect at that address. After a clean
 installation, set a root password through LuCI or `passwd`. Check the display,
-Wi-Fi and cellular connection separately: initial OpenWrt boot is confirmed, but
-Wi-Fi and cellular data operation remain unverified on this unit. This sysupgrade
-procedure is based on the project's upgrade implementation; a completed hardware
-sysupgrade has not yet been recorded.
+Wi-Fi and cellular connection separately. A hardware sysupgrade, SSH/HTTP and
+overlay operation have been verified on this unit. A Wi-Fi AP interface was
+observed; complete Wi-Fi/cellular data traffic remains unverified.
 
 #### Installing from stock Android
 
