@@ -199,7 +199,6 @@ static void draw_fitted(Framebuffer *fb, FT_Face face, const char *value,
 static void generate_dashboard(Framebuffer *fb, DisplayConfig *cfg, FT_Face face) {
     fb_init(fb);
     fb_draw_rect(fb, 0, 0, WIDTH, 19, RGB565(25, 55, 91));
-    fb_draw_text(fb, face, "MiFi", 5, 14, 12);
     char text[32];
     if (cfg->battery < 0)
         snprintf(text, sizeof(text), "--");
@@ -214,16 +213,15 @@ static void generate_dashboard(Framebuffer *fb, DisplayConfig *cfg, FT_Face face
         uint16_t color = cfg->battery <= 15 ? RGB565(255, 120, 105) : RGB565(99, 222, 176);
         fb_draw_rect(fb, 109, 7, (11 * cfg->battery + 99) / 100, 5, color);
     }
-    int bars = cfg->signal < 0 ? 0 : (cfg->signal + 24) / 25;
-    for (int i = 0; i < 4; i++) {
-        int height = 4 + i * 3;
-        fb_draw_rect(fb, 6 + i * 6, 35 - height, 4, height,
-                     i < bars ? RGB565(99, 222, 176) : RGB565(54, 65, 80));
-    }
+    /* Full-width signal track; its filled length follows the percentage. */
+    fb_draw_rect(fb, 0, 21, WIDTH, 5, RGB565(54, 65, 80));
+    if (cfg->signal >= 0)
+        fb_draw_rect(fb, 0, 21, WIDTH * cfg->signal / 100, 5,
+                     RGB565(99, 222, 176));
     if (cfg->signal < 0) snprintf(text, sizeof(text), "--");
     else snprintf(text, sizeof(text), "%d%%", cfg->signal);
-    fb_draw_text(fb, face, text, 35, 34, 10);
-    draw_fitted(fb, face, cfg->network_type, 77, 34, 10, 46, 1);
+    fb_draw_text(fb, face, text, 6, 37, 10);
+    draw_fitted(fb, face, cfg->network_type, 77, 37, 10, 46, 1);
     draw_fitted(fb, face, cfg->operator, 6, 49, 10, 116, 0);
     fb_draw_rect(fb, 6, 55, 116, 1, RGB565(45, 63, 85));
     fb_draw_text(fb, face, "IMEI", 6, 63, 8);

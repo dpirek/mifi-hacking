@@ -1,0 +1,50 @@
+#!/bin/sh
+. /usr/share/libubox/jshn.sh
+error() { json_init; json_add_string error "$1"; json_dump; exit 0; }
+case "$1" in
+ list) echo '{"status":{},"configure":{"server":"","token":"","enabled":true}}' ;;
+ call)
+  case "$2" in
+   status)
+    state=disabled; message='Remote management is disabled'; updated=0
+    if [ "$(uci -q get mifi-remote.main.enabled)" = 1 ]; then
+     state=disconnected; message='Waiting for the agent to connect'
+     if [ -f /var/run/mifi-remote.json ]; then
+      json_load "$(cat /var/run/mifi-remote.json)"
+      json_get_var state state; json_get_var message message; json_get_var updated updated
+     fi
+     [ "$(( $(date +%s) - updated ))" -lt 90 ] || { state=disconnected; message='Agent has not reported recently'; }
+    fi
+    json_init
+    json_add_string server "$(uci -q get mifi-remote.main.server)"
+    json_add_boolean enabled "$(uci -q get mifi-remote.main.enabled || echo 0)"
+    if [ -n "$(uci -q get mifi-remote.main.token)" ]; then json_add_boolean token_set 1; else json_add_boolean token_set 0; fi
+    json_add_string state "$state"; json_add_string message "$message"; json_add_int updated "$updated"
+    json_dump ;;
+   configure)
+    IFS= read -r input
+    jsonfilter -s "$input" -e '@' >/dev/null 2>&1 || error 'Invalid JSON'
+    json_load "$input"
+    json_get_type kind enabled; [ "$kind" = boolean ] || error 'enabled must be a boolean'
+    json_get_var enabled enabled
+    json_get_type kind server; [ "$kind" = string ] || error 'server must be a string'
+    json_get_var server server
+    printf '%s' "$server" | grep -Eq '^https://[a-zA-Z0-9.-]+(:[0-9]{1,5})?$' || error 'Enter an HTTPS server origin without a path or trailing slash'
+    json_get_type kind token; [ "$kind" = string ] || error 'token must be a string'
+    json_get_var token token
+    if [ -n "$token" ]; then
+     case "$token" in *[!a-f0-9]*) error 'Invalid pairing token' ;; esac
+     [ "${#token}" = 64 ] || error 'Pairing token must be 64 characters'
+    else token=$(uci -q get mifi-remote.main.token); fi
+    [ "$enabled" != 1 ] || [ -n "$token" ] || error 'Paste the token from the management app'
+    uci set mifi-remote.main=remote && uci set "mifi-remote.main.server=$server" &&
+     uci set "mifi-remote.main.token=$token" && uci set "mifi-remote.main.enabled=$enabled" &&
+     uci commit mifi-remote || error 'Could not save configuration'
+    chmod 600 /etc/config/mifi-remote
+    /etc/init.d/mifi-remote enable
+    /etc/init.d/mifi-remote restart >/dev/null 2>&1 || error 'Saved, but could not restart agent'
+    echo '{"ok":true}' ;;
+   *) error 'Unknown method' ;;
+  esac ;;
+ *) exit 1 ;;
+esac

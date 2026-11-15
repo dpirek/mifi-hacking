@@ -1,17 +1,22 @@
 @import url('../bootstrap/cascade.css');
 @import url('../bootstrap/mobile.css') screen and (max-width: 899px);
-@import url('pages.css');
+@import url('pages.css?v=mifi-7');
+@import url('network.css?v=mifi-4');
 
 /* Shared LuCI shell; existing form components keep their Bootstrap behavior. */
 html[data-darkmode="false"] { color-scheme: light; }
-body.mifi-shell { margin: 0; padding: 0; background: #f4f6fa; color: #172740; }
+body.mifi-shell { margin: 0; padding: 0; background: #fff; color: #172740; }
 .mifi-shell [hidden] { display: none !important; }
 .mifi-shell > .mifi-header { position: fixed; inset: 0 0 auto; z-index: 2000; display: flex; align-items: center; gap: 16px; height: 64px; min-height: 0; padding: 0 26px; margin: 0; border: 0; border-bottom: 1px solid #dce3ed; background: #fff; color: #172740; box-shadow: none; box-sizing: border-box; }
 .mifi-shell .mifi-brand { display: inline-block; padding: 0; margin: 0; color: #183459; text-decoration: none; font-size: 23px; line-height: 1; font-weight: 750; letter-spacing: -.055em; text-shadow: none; }
 .mifi-shell .mifi-indicators { display: flex; align-items: center; gap: 8px; margin-left: auto; min-width: 0; }
-.mifi-shell .mifi-signout { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 13px; color: #52647f; font-size: 12px; font-weight: 600; text-decoration: none; border-radius: 9px; white-space: nowrap; }
+/* Preserve LuCI's live label for assistive technology; paint only a dot. */
+.mifi-shell #indicators [data-indicator="poll-status"] { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 44px; margin: 0; padding: 0; border: 0; background: transparent; box-shadow: none; font-size: 0; line-height: 0; }
+.mifi-shell #indicators [data-indicator="poll-status"]::before { content: ''; display: block; width: 8px; height: 8px; border-radius: 50%; background: #218653; }
+.mifi-shell #indicators [data-indicator="poll-status"][data-style="inactive"]::before { background: #b77916; }
+.mifi-shell .mifi-signout { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 13px; color: #52647f; font-size: 12px; font-weight: 600; text-decoration: none; border-radius: 0; white-space: nowrap; }
 .mifi-shell .mifi-signout:hover { color: #244fce; background: #f0f4fc; }
-.mifi-shell .mifi-menu-toggle { display: none; align-items: center; justify-content: center; gap: 9px; min-height: 44px; padding: 8px 12px; border: 1px solid #dce3ed; border-radius: 10px; background: #fff; color: #243954; font-size: 13px; font-weight: 600; line-height: 1; box-shadow: none; text-shadow: none; cursor: pointer; }
+.mifi-shell .mifi-menu-toggle { display: none; align-items: center; justify-content: center; gap: 9px; min-height: 44px; padding: 8px 12px; border: 1px solid #dce3ed; border-radius: 0; background: #fff; color: #243954; font-size: 13px; font-weight: 600; line-height: 1; box-shadow: none; text-shadow: none; cursor: pointer; }
 .mifi-shell .mifi-menu-icon { position: relative; display: inline-block; width: 16px; height: 2px; background: currentColor; }
 .mifi-shell .mifi-menu-icon::before, .mifi-shell .mifi-menu-icon::after { content: ''; position: absolute; left: 0; width: 16px; height: 2px; background: currentColor; }
 .mifi-shell .mifi-menu-icon::before { top: -5px; }
@@ -19,23 +24,23 @@ body.mifi-shell { margin: 0; padding: 0; background: #f4f6fa; color: #172740; }
 .mifi-shell .mifi-navigation { position: fixed; z-index: 1950; top: 64px; left: 0; bottom: 0; width: 248px; box-sizing: border-box; overflow-y: auto; overscroll-behavior: contain; padding: 26px 14px; border-right: 1px solid #dce3ed; background: #fff; }
 .mifi-shell .mifi-nav-caption { padding: 0 13px; margin: 0 0 20px; color: #78859a; font-size: 10px; line-height: 1.5; font-weight: 700; letter-spacing: .12em; }
 .mifi-shell .mifi-menu, .mifi-shell .mifi-submenu { display: block; list-style: none; padding: 0; margin: 0; float: none; }
-.mifi-shell .mifi-menu > li { padding: 0; margin: 0 0 7px; float: none; }
+.mifi-shell .mifi-menu > li { padding: 0; margin: 0; border-bottom: 1px solid #dce3ed; float: none; }
 .mifi-shell .mifi-submenu > li { padding: 0; margin: 2px 0; }
-.mifi-shell .mifi-nav-group { margin: 0; padding: 0; border: 0; border-radius: 10px; }
-.mifi-shell .mifi-nav-group > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 46px; padding: 10px 13px; border-radius: 10px; color: #243954; font-size: 14px; line-height: 1.5; font-weight: 650; cursor: pointer; list-style: none; box-sizing: border-box; }
+.mifi-shell .mifi-nav-group { margin: 0; padding: 0; border: 0; border-radius: 0; }
+.mifi-shell .mifi-nav-group > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 46px; padding: 10px 13px; border-radius: 0; color: #243954; font-size: 14px; line-height: 1.5; font-weight: 650; cursor: pointer; list-style: none; box-sizing: border-box; }
 .mifi-shell .mifi-nav-group > summary::-webkit-details-marker { display: none; }
 .mifi-shell .mifi-nav-group > summary:hover { background: #f3f6fb; }
 .mifi-shell .mifi-nav-chevron { display: block; flex: 0 0 auto; width: 6px; height: 6px; margin-right: 3px; border-right: 1.5px solid #78859a; border-bottom: 1.5px solid #78859a; transform: rotate(45deg); }
 .mifi-shell .mifi-nav-group[open] > summary .mifi-nav-chevron { transform: rotate(225deg); }
 .mifi-shell .mifi-submenu { padding: 2px 0 5px 10px; }
-.mifi-shell .mifi-nav-link { display: flex; align-items: center; min-height: 44px; box-sizing: border-box; padding: 10px 13px; border-radius: 9px; color: #627086; text-decoration: none; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.mifi-shell .mifi-nav-link { display: flex; align-items: center; min-height: 44px; box-sizing: border-box; padding: 10px 13px; border-radius: 0; color: #627086; text-decoration: none; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
 .mifi-shell .mifi-nav-link:hover { color: #244fce; background: #f3f6fb; text-decoration: none; }
-.mifi-shell .mifi-nav-link.is-active { background: #edf2ff; color: #244fce; font-weight: 700; }
+.mifi-shell .mifi-nav-link.is-active { background: #f3f6fb; color: #244fce; font-weight: 700; box-shadow: inset 2px 0 #244fce; }
 .mifi-shell .mifi-mode-menu { margin-top: 20px; border-top: 1px solid #dce3ed; padding: 14px; }
 .mifi-shell .mifi-mode-menu a { display: block; padding: 10px 0; color: #627086; }
 .mifi-shell #maincontent.container { width: auto; max-width: none; min-width: 0; margin: 64px 0 0 248px; padding: 28px; box-sizing: border-box; }
 .mifi-shell #tabmenu { margin-bottom: 20px; max-width: 100%; overflow-x: auto; }
-.mifi-shell #tabmenu .tabs { display: flex; flex-wrap: nowrap; min-width: max-content; }
+.mifi-shell #tabmenu .tabs { display: flex; flex-wrap: nowrap; min-width: 0; }
 .mifi-shell #tabmenu .tabs a { display: flex; align-items: center; min-height: 44px; box-sizing: border-box; }
 .mifi-shell .mifi-nav-shade { position: fixed; z-index: 1900; inset: 64px 0 0; border: 0; border-radius: 0; background: #10203966; box-shadow: none; cursor: pointer; }
 .mifi-shell .mifi-navigation a:focus-visible, .mifi-shell .mifi-navigation summary:focus-visible, .mifi-shell .mifi-menu-toggle:focus-visible, .mifi-shell .mifi-signout:focus-visible { outline: 3px solid #7da3fa; outline-offset: 2px; }
@@ -44,8 +49,8 @@ body.mifi-shell { margin: 0; padding: 0; background: #f4f6fa; color: #172740; }
 .mifi-shell .mifi-login-title > p { margin: 8px 0; color: #627086; font-size: 14px; }
 @media (max-width: 899px) {
 	.mifi-shell > .mifi-header { height: 60px; padding: 0 12px; gap: 12px; }
-	.mifi-shell .mifi-menu-toggle { display: inline-flex; }
-	.mifi-shell .mifi-brand { font-size: 22px; }
+	.mifi-shell .mifi-menu-toggle { display: inline-flex; border: 0; background: transparent; }
+	.mifi-shell .mifi-brand { display: none; }
 	.mifi-shell .mifi-signout { padding: 0 8px; }
 	.mifi-shell .mifi-indicators { gap: 4px; }
 	.mifi-shell .mifi-navigation { top: 60px; width: min(300px, 86vw); padding: 22px 14px; box-shadow: 10px 0 30px #132a4320; }

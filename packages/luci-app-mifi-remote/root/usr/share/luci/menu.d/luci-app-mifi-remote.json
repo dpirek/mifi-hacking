@@ -1,0 +1,7 @@
+{
+ "admin/system/remote-management": {
+  "title": "Remote management", "order": 75,
+  "action": {"type":"view","path":"mifi-remote/config"},
+  "depends": {"acl":["luci-app-mifi-remote"]}
+ }
+}

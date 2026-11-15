@@ -1,0 +1,7 @@
+{
+ "luci-app-mifi-remote": {
+  "description":"Configure outbound remote management",
+  "read":{"ubus":{"mifi-remote":["status"]}},
+  "write":{"ubus":{"mifi-remote":["configure"]}}
+ }
+}

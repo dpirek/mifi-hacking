@@ -1,11 +1,108 @@
 'use strict';
 'require baseclass';
 'require ui';
+'require rpc';
+'require poll';
 
 return baseclass.extend({
 	__init__: function() {
+		var indicators = document.querySelector('#indicators');
+		if (indicators) {
+			var labelStatus = function() {
+				var status = indicators.querySelector('[data-indicator="poll-status"]');
+				if (status && status.title !== status.textContent) status.title = status.textContent;
+			};
+			new MutationObserver(labelStatus).observe(indicators, { childList: true, subtree: true, characterData: true });
+			labelStatus();
+		}
+		this.setupStatus();
 		ui.menu.load().then(this.render.bind(this));
 	},
+
+	setupStatus: function() {
+		var page = document.body.getAttribute('data-page');
+		var action = L.env.nodespec && L.env.nodespec.action;
+		if ((!action || action.path !== 'admin_status/index') &&
+			['admin', 'admin-status', 'admin-status-overview'].indexOf(page) === -1) return;
+		document.body.setAttribute('data-page', 'admin-status-overview');
+		var main = document.querySelector('#maincontent');
+		var summary, sequence = 0;
+		var status = rpc.declare({ object: 'mifi-status', method: 'status' });
+		function control(section, heading, content, original) {
+			var title = Array.from(heading.childNodes).filter(function(node) { return node !== original; }).map(function(node) { return node.textContent; }).join('').trim();
+			var button = E('button', { 'type': 'button', 'class': 'mifi-panel-toggle' },
+				E('span', { 'aria-hidden': 'true' }));
+			content.id = content.id || 'mifi-panel-' + (++sequence);
+			button.setAttribute('aria-controls', content.id);
+			function sync() {
+				var hidden = original ? original.getAttribute('data-style') === 'active' : content.hidden;
+				section.classList.toggle('mifi-panel-collapsed', hidden);
+				button.setAttribute('aria-expanded', hidden ? 'false' : 'true');
+				button.setAttribute('aria-label', (hidden ? _('Show') : _('Hide')) + ' ' + title);
+				button.title = button.getAttribute('aria-label');
+			}
+			if (original) {
+				original.hidden = true;
+				new MutationObserver(sync).observe(original, { attributes: true, attributeFilter: ['data-style'] });
+			} else content.hidden = localStorage.getItem(title) === 'hide';
+			button.addEventListener('click', function() {
+				if (original) original.click();
+				else {
+					content.hidden = !content.hidden;
+					if (content.hidden) localStorage.setItem(title, 'hide');
+					else localStorage.removeItem(title);
+				}
+				sync();
+			});
+			heading.appendChild(button);
+			section.setAttribute('data-mifi-panel', 'true');
+			sync();
+		}
+		function enhance() {
+			main.querySelectorAll('.cbi-section:not([data-mifi-panel])').forEach(function(section) {
+				var original = section.querySelector(':scope > .cbi-title [data-clickable]');
+				if (original) {
+					var heading = original.parentNode;
+					control(section, heading, section.children[1], original);
+				} else {
+					var legend = section.querySelector(':scope > legend');
+					if (!legend) return;
+					var heading = E('h3', {}, legend.textContent);
+					var title = E('div', { 'class': 'cbi-title' }, heading);
+					var content = E('div');
+					legend.replaceWith(title);
+					while (title.nextSibling) content.appendChild(title.nextSibling);
+					section.appendChild(content);
+					control(section, heading, content, null);
+				}
+			});
+			var heading = main.querySelector('h2');
+			if (!summary && heading) {
+				summary = E('dl', { 'class': 'mifi-status-summary', 'aria-label': _('Router summary') });
+				heading.after(summary);
+				poll.add(function() {
+					return status().then(function(data) {
+						function available(v) { return v && v !== '--' ? v : _('Unavailable'); }
+						var entries = [
+							[_('Battery'), data.battery >= 0 ? (data.estimated ? '~' : '') + data.battery + '%' + (data.charging ? ' · ' + _('Charging') : '') : _('Unavailable')],
+							[_('IMEI'), available(data.imei)],
+							[_('Wi-Fi name'), (data.wifi || []).join(', ') || _('Disabled')],
+							[_('Connected clients'), data.clients == null ? _('Unavailable') : String(data.clients)],
+							[_('Mobile network'), data.operator && data.operator !== '--' ? data.operator : available(data.state)],
+							[_('Signal'), data.state === 'registered' || data.state === 'connected' ? (data.signal >= 0 ? data.signal + '%' : _('Unavailable')) : _('No service')]
+						];
+						if (data.phone && data.phone !== '--') entries.splice(4, 0, [_('Phone number'), data.phone]);
+						summary.replaceChildren.apply(summary, entries.map(function(entry) {
+							return E('div', {}, [E('dt', {}, entry[0]), E('dd', {}, entry[1])]);
+						}));
+					}).catch(function() { summary.textContent = _('Router summary temporarily unavailable'); });
+				}, 10);
+			}
+		}
+		new MutationObserver(enhance).observe(main, { childList: true, subtree: true });
+		enhance();
+	},
+
 	render: function(tree) {
 		var menu = document.querySelector('#topmenu');
 		if (!menu) return;

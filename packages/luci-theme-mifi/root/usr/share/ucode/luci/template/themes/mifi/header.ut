@@ -21,8 +21,8 @@
 		<title>{{ striptags(`MiFi${dispatched?.title ? ` | ${_(dispatched.title)}` : ''}`) }}</title>
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<meta name="darkreader-lock">
-		<link rel="stylesheet" href="{{ media }}/cascade.css?v=mifi-2">
-		<link rel="stylesheet" media="only screen and (max-device-width: 854px)" href="{{ media }}/mobile.css?v=mifi-2" />
+		<link rel="stylesheet" href="{{ media }}/cascade.css?v=mifi-7">
+		<link rel="stylesheet" media="only screen and (max-device-width: 854px)" href="{{ media }}/mobile.css?v=mifi-6" />
 		<link rel="icon" href="data:,">
 		{% if (node?.css): %}
 		<link rel="stylesheet" href="{{ resource }}/{{ node.css }}">
@@ -37,8 +37,8 @@
 	<body class="mifi-shell lang_{{ dispatcher.lang }} {{ entityencode(striptags(node?.title ?? ''), true) }}" data-page="{{ entityencode(join('-', ctx.request_path), true) }}">
 		{% if (!blank_page): %}
 		<header class="mifi-header">
-			<button id="mifi-menu-toggle" class="mifi-menu-toggle" type="button" aria-expanded="false" aria-controls="mifi-navigation">
-				<span class="mifi-menu-icon" aria-hidden="true"></span><span>{{ _('Menu') }}</span>
+			<button id="mifi-menu-toggle" class="mifi-menu-toggle" type="button" aria-label="{{ _('Menu') }}" aria-expanded="false" aria-controls="mifi-navigation">
+				<span class="mifi-menu-icon" aria-hidden="true"></span>
 			</button>
 			<a class="mifi-brand" href="{{ dispatcher.build_url('admin') }}">MiFi</a>
 			<div id="indicators" class="mifi-indicators"></div>

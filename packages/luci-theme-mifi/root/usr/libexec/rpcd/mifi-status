@@ -1,0 +1,36 @@
+#!/bin/sh
+case "$1" in
+list) echo '{"status":{}}' ;;
+call)
+ [ "$2" = status ] || exit 1
+ . /usr/share/libubox/jshn.sh
+ . /lib/functions.sh
+ . /usr/lib/router-display/metrics.sh
+ display_battery /sys/class/power_supply
+ modem=$(mmcli -m any -K 2>/dev/null)
+ value() { printf '%s\n' "$modem" | display_value "$1"; }
+ json_init
+ json_add_int battery "$BATTERY"
+ json_add_boolean estimated "$BATTERY_ESTIMATED"
+ json_add_boolean charging "$CHARGING"
+ json_add_string imei "$(value modem.generic.equipment-identifier)"
+ json_add_string phone "$(value modem.generic.own-numbers)"
+ json_add_string operator "$(value modem.3gpp.operator-name)"
+ json_add_string state "$(value modem.generic.state)"
+ display_signal "$modem"
+ json_add_int signal "$SIGNAL"
+ json_add_array wifi
+ wifi() {
+  config_get disabled "$1" disabled 0
+  config_get mode "$1" mode
+  config_get ssid "$1" ssid
+  [ "$disabled" = 1 ] || [ "$mode" != ap ] || json_add_string '' "$ssid"
+ }
+ config_load wireless
+ config_foreach wifi wifi-iface
+ json_close_array
+ clients=$(for ap in $(ubus list 'hostapd.*'); do ubus call "$ap" get_clients 2>/dev/null | jsonfilter -e '@.clients'; done | sed -n 's/.*"\([0-9a-fA-F:]*\)": {.*/\1/p' | sort -u | wc -l)
+ json_add_int clients "$clients"
+ json_dump
+ ;;
+esac

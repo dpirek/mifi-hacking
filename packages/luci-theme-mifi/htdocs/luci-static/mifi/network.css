@@ -1,0 +1,65 @@
+/* Interfaces and Wireless: status rows with a separate, stable action area. */
+.mifi-shell #maincontent .td.cbi-section-actions > div,
+.mifi-shell .modal .td.cbi-section-actions > div {
+ display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px;
+}
+.mifi-shell #maincontent .td.cbi-section-actions .cbi-button,
+.mifi-shell .modal .td.cbi-section-actions .cbi-button {
+ flex: 0 0 auto; width: auto; min-width: max-content; margin: 0;
+ white-space: nowrap; word-break: normal; overflow-wrap: normal;
+}
+.mifi-shell:is([data-page="admin-network-network"], [data-page="admin-network-wireless"]) #maincontent .cbi-section-table {
+ display: block; width: 100%; table-layout: auto;
+}
+.mifi-shell:is([data-page="admin-network-network"], [data-page="admin-network-wireless"]) #maincontent .cbi-section-tbody {
+ display: block; width: 100%;
+}
+.mifi-shell:is([data-page="admin-network-network"], [data-page="admin-network-wireless"]) #maincontent .cbi-section-table-row {
+ display: grid; grid-template-columns: minmax(120px, .65fr) minmax(0, 2fr) 200px;
+ gap: 20px; align-items: center; width: 100%; padding: 24px 0; margin: 0;
+ border: 0; border-bottom: 1px solid var(--mifi-line); background: transparent;
+}
+.mifi-shell:is([data-page="admin-network-network"], [data-page="admin-network-wireless"]) #maincontent .cbi-section-table-row > .td {
+ display: block; width: auto !important; min-width: 0 !important; padding: 0;
+ border: 0; text-align: left; white-space: normal; overflow-wrap: anywhere;
+}
+.mifi-shell:is([data-page="admin-network-network"], [data-page="admin-network-wireless"]) #maincontent .cbi-section-table-row > .td::before { display: none; }
+.mifi-shell:is([data-page="admin-network-network"], [data-page="admin-network-wireless"]) #maincontent .cbi-section-table-row .cbi-section-actions > div {
+ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+}
+.mifi-shell:is([data-page="admin-network-network"], [data-page="admin-network-wireless"]) #maincontent .cbi-section-table-row .cbi-section-actions .cbi-button {
+ width: 100%; min-width: 0; min-height: 44px; padding: 11px 10px; line-height: 20px;
+ color: #243954; border: 1px solid #aebdce; background: #fff;
+}
+.mifi-shell:is([data-page="admin-network-network"], [data-page="admin-network-wireless"]) #maincontent .cbi-section-table-row .cbi-section-actions .cbi-button:is(.cbi-button-edit, .cbi-button-action) { color: #fff; background: var(--mifi-blue); border-color: var(--mifi-blue); }
+.mifi-shell:is([data-page="admin-network-network"], [data-page="admin-network-wireless"]) #maincontent .cbi-section-table-row .cbi-section-actions .cbi-button.cbi-button-remove { color: #a52c3b; border-color: #e0b7be; background: #fff; }
+.mifi-shell:is([data-page="admin-network-network"], [data-page="admin-network-wireless"]) #maincontent .cbi-section-table-row .cbi-section-actions .cbi-button:hover:not(:disabled) { color: #172740; background: #edf2fa; border-color: #7186a3; }
+.mifi-shell:is([data-page="admin-network-network"], [data-page="admin-network-wireless"]) #maincontent .cbi-section-table-row .cbi-section-actions .cbi-button:disabled { color: #8793a5; background: #f4f6f9; border-color: #dce3ed; cursor: default; }
+.mifi-shell[data-page="admin-network-network"] #maincontent .ifacebox {
+ display: flex; width: 100%; margin: 0; border: 0; background: transparent;
+ text-align: left; white-space: normal;
+}
+.mifi-shell[data-page="admin-network-network"] #maincontent .ifacebox-head {
+ padding: 5px 10px; border: 0; font-size: 14px; line-height: 24px; text-shadow: none;
+}
+.mifi-shell[data-page="admin-network-network"] #maincontent .ifacebox-body { padding: 10px 0 0; overflow-wrap: anywhere; }
+.mifi-shell[data-page="admin-network-network"] #maincontent [data-name="_ifacestat"] > div { line-height: 1.9; }
+.mifi-shell[data-page="admin-network-network"] #maincontent [data-name="_ifacestat"] .nowrap { white-space: normal; }
+.mifi-shell[data-page="admin-network-network"] #maincontent [data-name="_ifacestat"] strong { color: var(--mifi-muted); font-weight: 500; }
+.mifi-shell[data-page="admin-network-wireless"] #maincontent [data-name="_badge"] { font-weight: 650; }
+.mifi-shell[data-page="admin-network-wireless"] #maincontent [data-name="_stat"] { line-height: 1.9; }
+.mifi-shell[data-page="admin-network-wireless"] #maincontent .ifacebadge:not(.cbi-tooltip) { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; padding: 8px 0; border: 0; background: transparent; }
+.mifi-shell:is([data-page="admin-network-network"], [data-page="admin-network-wireless"]) #maincontent .cbi-section-create { padding: 16px 0; }
+@media (max-width: 1179px) {
+ .mifi-shell:is([data-page="admin-network-network"], [data-page="admin-network-wireless"]) #maincontent .cbi-section-table-row { grid-template-columns: minmax(110px, .7fr) minmax(0, 2fr); gap: 16px; }
+ .mifi-shell:is([data-page="admin-network-network"], [data-page="admin-network-wireless"]) #maincontent .cbi-section-table-row > .cbi-section-actions { grid-column: 1 / -1; }
+ .mifi-shell:is([data-page="admin-network-network"], [data-page="admin-network-wireless"]) #maincontent .cbi-section-table-row .cbi-section-actions > div { display: flex; justify-content: flex-start; flex-wrap: wrap; }
+ .mifi-shell:is([data-page="admin-network-network"], [data-page="admin-network-wireless"]) #maincontent .cbi-section-table-row .cbi-section-actions .cbi-button { width: auto; min-width: 88px; flex: 0 0 auto; }
+}
+@media (max-width: 599px) {
+ .mifi-shell:is([data-page="admin-network-network"], [data-page="admin-network-wireless"]) #maincontent .cbi-section-table-row { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 22px 0; }
+ .mifi-shell:is([data-page="admin-network-network"], [data-page="admin-network-wireless"]) #maincontent .cbi-section-table-row .cbi-section-actions > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+ .mifi-shell:is([data-page="admin-network-network"], [data-page="admin-network-wireless"]) #maincontent .cbi-section-table-row .cbi-section-actions .cbi-button { width: 100%; min-width: 0; }
+}
+
+.mifi-shell[data-page="admin-network-wireless"] #maincontent [data-name="_badge"] > .center { text-align: left; }

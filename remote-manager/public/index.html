@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>MiFi · Remote management</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
+<body>
+<header><a class="brand" href="/">MiFi<span>REMOTE MANAGEMENT</span></a><button id="logout" hidden>Sign out</button></header>
+<main>
+<section id="login" class="login" hidden><p class="eyebrow">YOUR ROUTERS, WHEREVER YOU ARE</p><h1>Stay connected.</h1><p class="muted">Sign in to manage your paired MiFi routers.</p><form id="login-form"><label for="password">Management password</label><input id="password" type="password" required autocomplete="current-password"><button class="primary" type="submit">Sign in</button></form><p id="login-error" role="alert"></p></section>
+<div id="app" hidden>
+<div class="page-heading"><div><p class="eyebrow">CONTROL CENTER</p><h1>Your routers</h1></div><button id="add-router" class="primary">+ Pair a router</button></div>
+<div class="workspace"><aside><p class="eyebrow">DEVICES</p><div id="routers"></div></aside><section class="detail"><div class="detail-heading"><div><h2 id="router-name">Select a router</h2><p id="connection" class="muted">Pair a device to get started.</p></div><button id="refresh" disabled>Refresh</button></div>
+<nav id="tabs" aria-label="Router sections"><button data-tab="status" aria-selected="true">Overview</button><button data-tab="interfaces">Interfaces</button><button data-tab="wireless">Wireless</button><button data-tab="sms">SMS</button><button data-tab="settings">Connection</button></nav>
+<p id="feedback" role="status" aria-live="polite"></p><div id="content"><p class="empty">Your remote connection starts here.<br>Add a router, then enter its token in LuCI → System → Remote management.</p></div></section></div>
+</div>
+</main>
+<dialog id="pair-dialog"><form id="pair-form"><div class="dialog-heading"><h2>Pair a router</h2><button type="button" id="close-pair" aria-label="Close pairing dialog">×</button></div><p>Give your router a name. You’ll receive a token to enter on the router.</p><label for="router-label">Router name</label><input id="router-label" maxlength="80" required placeholder="Travel MiFi"><button class="primary" type="submit">Create pairing token</button></form><div id="pair-result" hidden><h2>Connect your router</h2><p>Open <strong>LuCI → System → Remote management</strong> and enter:</p><label for="pair-server">Management server</label><input id="pair-server" readonly><label for="pair-token">Pairing token — shown only now</label><input id="pair-token" readonly><button id="copy-token">Copy token</button><p class="muted">Enable remote management and save. Keep this token private; it gives this server access to the router.</p><button id="done-pair" class="primary">Done</button></div><p id="pair-error" role="alert"></p></dialog>
+<footer>MiFi / Outbound encrypted connection · No router port forwarding</footer>
+</body></html>

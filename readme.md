@@ -57,8 +57,9 @@ UZ801 EDL flasher for this unit. Hardware findings are recorded in
 ## Changes from original source
 
 The comparison baseline is this repository's initial commit, **`ca13ba8`**
-(`initial commit`). The changes described below were collected in **`65164c1`**
-(`refactor`). The original checkout already contained the MF68E target, GC9107
+(`initial commit`). The comparison describes the current source tree, including the additions
+collected in **`65164c1`** (`refactor`) and subsequent local UI refinements. The
+original checkout already contained the MF68E target, GC9107
 support, USB gadget configuration, modem firmware extraction, VPN packages and
 UZ801/UF02 flashing support. This work extends that foundation with a tested
 MF68E installation path, device controls and LuCI applications.
@@ -66,8 +67,8 @@ MF68E installation path, device controls and LuCI applications.
 To inspect the implementation against the same baseline:
 
 ```sh
-git diff --stat ca13ba8..65164c1
-git diff ca13ba8..65164c1 -- packages/rmtfs packages/modem-identity
+git diff --stat ca13ba8
+git diff ca13ba8 -- packages/rmtfs packages/modem-identity
 ```
 
 ### Source map and behavior changes
@@ -423,8 +424,9 @@ The SSH connection will close while the router writes the image and reboots.
 Leave power connected and allow several minutes for it to return. The default
 command requests configuration preservation. The project's upgrade hook clears
 the overlay, so manually installed packages and other files outside the saved
-configuration must be reinstalled or backed up separately. The tested upgrade preserved the hostname, network configuration and SSH key;
-custom overlay additions needed separate restoration.
+configuration must be reinstalled or backed up separately. The tested upgrade
+preserved the hostname, network configuration and SSH key; custom overlay
+additions needed separate restoration.
 
 For a clean installation, use `sysupgrade -n /tmp/mf68e-sysupgrade.bin` instead;
 this discards configuration, including passwords and network settings.

@@ -6,7 +6,7 @@ cd /home/builder/openwrt
 cp /repo/diffconfig_mf68e .config
 make defconfig
 grep -qx 'CONFIG_TARGET_msm89xx_msm8916_DEVICE_generic-mf68e=y' .config
-for package in configs-mifi router-display kmod-fbtft-gc9107 modem-identity luci-app-modem-identity luci-app-sms luci-theme-mifi; do
+for package in configs-mifi router-display kmod-fbtft-gc9107 modem-identity luci-app-modem-identity luci-app-sms luci-app-mifi-remote luci-theme-mifi; do
     grep -qx "CONFIG_PACKAGE_${package}=y" .config
 done
 make download -j8

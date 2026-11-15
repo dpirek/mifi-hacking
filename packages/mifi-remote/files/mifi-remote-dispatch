@@ -1,0 +1,36 @@
+#!/bin/sh
+# This is the entire remote API surface. Never execute server-supplied commands.
+. /usr/share/libubox/jshn.sh
+error() { json_init; json_add_string error "$1"; json_dump; exit 0; }
+IFS= read -r request
+jsonfilter -s "$request" -e '@' >/dev/null 2>&1 || error 'Invalid request'
+json_load "$request"
+json_get_var action action
+args=$(jsonfilter -s "$request" -e '@.args')
+json_select args || error 'Missing arguments'
+case "$action" in
+ status)
+  board=$(ubus call system board) || error 'System unavailable'
+  info=$(ubus call system info) || error 'System unavailable'
+  printf '{"board":%s,"system":%s}\n' "$board" "$info" ;;
+ interfaces) ubus call network.interface dump || error 'Network status unavailable' ;;
+ wireless) ubus call network.wireless status || error 'Wireless status unavailable' ;;
+ sms.list|sms.read|sms.send)
+  [ -x /usr/libexec/rpcd/sms ] || error 'Install luci-app-sms on this router'
+  printf '%s\n' "$args" | /usr/libexec/rpcd/sms call "${action#sms.}" ;;
+ interface.restart|wireless.up|wireless.down)
+  json_get_type kind name; [ "$kind" = string ] || error 'Invalid name'
+  json_get_var name name
+  case "$name" in ''|*[!a-zA-Z0-9_]* ) error 'Invalid name' ;; esac
+  [ "${#name}" -le 32 ] || error 'Name too long'
+  if [ "$action" = interface.restart ]; then
+   [ "$(uci -q get "network.$name")" = interface ] || error 'Unknown interface'
+   ifup "$name" >/dev/null 2>&1 || error 'Could not restart interface'
+  else
+   [ "$(uci -q get "wireless.$name")" = wifi-device ] || error 'Unknown radio'
+   json_init; json_add_string device "$name"; payload=$(json_dump)
+   ubus call network.wireless "${action#wireless.}" "$payload" >/dev/null || error 'Radio request failed'
+  fi
+  echo '{"ok":true}' ;;
+ *) error 'Unsupported remote action' ;;
+esac
