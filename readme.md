@@ -1,13 +1,31 @@
-![OpenWrt logo](https://raw.githubusercontent.com/openwrt/openwrt/refs/heads/main/include/logo.png)
+![MF68E mobile Wi-Fi router](docs/mifi.webp)
 
-OpenWrt build for MSM8916 devices, with modem, USB gadget, Wi-Fi and MiFi
-interface support. Hardware verification varies by device; see the comparison
-and validation notes below.
+# MF68E Custom Firmware
+
+Custom firmware for the **MF68E mobile Wi-Fi router**, based on **OpenWrt**.
+This project adds a new web UI, device controls and features tailored to the
+MF68E's modem, display and power button. Its firmware and installation workflow
+are specific to the MF68E, rather than a generic build for MSM8916 devices.
+
+Highlights include:
+
+- **New MiFi web UI** with desktop sidebar navigation, a mobile drawer, custom
+  login and consistent styling across LuCI pages.
+- **On-device display** with live status, transfer rates, full-screen Wi-Fi QR,
+  SMS viewing and a ping-history sleep screen.
+- **Modem and messaging tools** for SMS management and IMEI backup, changes,
+  restoration and persistence verification.
+- **Power-button gestures** for status, Wi-Fi sharing, the latest SMS and shutdown.
+- **OpenVPN management** and an MF68E-specific build and experimental factory
+  installation workflow.
+
+See the feature and validation notes below for implementation details and the
+limits of hardware testing.
 
 ## Table of Contents
 
-- [About OpenWrt](#about-openwrt)
-- [Supported Devices](#supported-devices)
+- [About this project](#about-this-project)
+- [Target device: MF68E](#target-device-mf68e)
 - [Changes from original source](#changes-from-original-source)
 - [Features](#features)
 - [Prerequisites](#prerequisites)
@@ -23,20 +41,24 @@ and validation notes below.
 
 ---
 
-## About OpenWrt
+## About this project
 
-OpenWrt Project is a Linux operating system targeting embedded devices. Instead of trying to create a single, static firmware, OpenWrt provides a fully writable filesystem with package management. This frees you from the application selection and configuration provided by the vendor and allows you to customize the device through the use of packages to suit any application.
+OpenWrt provides the Linux networking platform, package management and LuCI
+administration framework. This project builds on that foundation with a custom
+MF68E experience: a redesigned interface, new applications, display behavior
+and hardware controls. The additions and their source locations are documented
+in [Changes from original source](#changes-from-original-source).
 
-## Supported Devices
+## Target device: MF68E
 
-These profiles target Qualcomm MSM8916 devices. Partition layouts, memory and
-peripherals must be checked for the specific board.
+The target is the **MF68E** (`generic-mf68e`), a Qualcomm MSM8916-based MiFi
+router with a GC9107 display and battery monitoring. Boot, display and IMEI
+persistence have been verified on the backed-up unit; peripheral and recovery
+validation remains incomplete.
 
-- **UZ801v3** (`yiming-uz801v3`) -- USB dongle form factor.
-- **UF02** (`generic-uf02`) -- USB dongle form factor, most likely with only asian bands. Can be somewhat changed via QPST and the `qcn` file from UZ801.
-
-- **MF68E** (`generic-mf68e`) -- MiFi with GC9107 display and battery monitoring; restored from the archived device support. Boot, display and IMEI persistence have been verified on the backed-up unit; peripheral and recovery validation remains incomplete.
-
+The repository retains inherited UZ801v3 (`yiming-uz801v3`) and UF02
+(`generic-uf02`) profiles and flashing notes for reference. They are separate
+device targets, not interchangeable MF68E firmware or installation paths.
 M9S device support remains archived in [TBR](TBR/readme.md).
 
 MF68E builds use `diffconfig_mf68e` and produce boot, system and sysupgrade images.
@@ -398,12 +420,9 @@ cd devenv
 docker compose build builder
 ```
 
-2. Enter and build:
+2. Build the MF68E firmware:
 ```
-docker compose run --rm builder
-cp /repo/diffconfig_uz801 .config
-make defconfig
-make -j$(nproc)
+docker compose run --rm builder bash /repo/devenv/build-mf68e.sh
 ```
 
 To build a specific release locally:
@@ -411,8 +430,7 @@ To build a specific release locally:
 OPENWRT_VERSION=v25.12.6 docker compose build builder
 ```
 
-For MF68E, run `bash /repo/devenv/build-mf68e.sh` inside the builder instead
-of the UZ801 commands above. This checks the device and display package selections,
+The MF68E helper checks the device and display package selections,
 downloads sources, and builds with eight jobs (`BUILD_JOBS` overrides this).
 Output is saved to `bin/targets/msm89xx/msm8916/` on the host.
 
