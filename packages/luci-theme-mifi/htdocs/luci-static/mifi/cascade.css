@@ -1,6 +1,6 @@
 @import url('../bootstrap/cascade.css');
 @import url('../bootstrap/mobile.css') screen and (max-width: 899px);
-@import url('pages.css?v=mifi-7');
+@import url('pages.css?v=mifi-14');
 @import url('network.css?v=mifi-4');
 
 /* Shared LuCI shell; existing form components keep their Bootstrap behavior. */
@@ -10,10 +10,8 @@ body.mifi-shell { margin: 0; padding: 0; background: #fff; color: #172740; }
 .mifi-shell > .mifi-header { position: fixed; inset: 0 0 auto; z-index: 2000; display: flex; align-items: center; gap: 16px; height: 64px; min-height: 0; padding: 0 26px; margin: 0; border: 0; border-bottom: 1px solid #dce3ed; background: #fff; color: #172740; box-shadow: none; box-sizing: border-box; }
 .mifi-shell .mifi-brand { display: inline-block; padding: 0; margin: 0; color: #183459; text-decoration: none; font-size: 23px; line-height: 1; font-weight: 750; letter-spacing: -.055em; text-shadow: none; }
 .mifi-shell .mifi-indicators { display: flex; align-items: center; gap: 8px; margin-left: auto; min-width: 0; }
-/* Preserve LuCI's live label for assistive technology; paint only a dot. */
-.mifi-shell #indicators [data-indicator="poll-status"] { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 44px; margin: 0; padding: 0; border: 0; background: transparent; box-shadow: none; font-size: 0; line-height: 0; }
-.mifi-shell #indicators [data-indicator="poll-status"]::before { content: ''; display: block; width: 8px; height: 8px; border-radius: 50%; background: #218653; }
-.mifi-shell #indicators [data-indicator="poll-status"][data-style="inactive"]::before { background: #b77916; }
+/* Keep automatic refresh running without a header indicator. */
+.mifi-shell #indicators [data-indicator="poll-status"] { display: none; }
 .mifi-shell .mifi-signout { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 13px; color: #52647f; font-size: 12px; font-weight: 600; text-decoration: none; border-radius: 0; white-space: nowrap; }
 .mifi-shell .mifi-signout:hover { color: #244fce; background: #f0f4fc; }
 .mifi-shell .mifi-menu-toggle { display: none; align-items: center; justify-content: center; gap: 9px; min-height: 44px; padding: 8px 12px; border: 1px solid #dce3ed; border-radius: 0; background: #fff; color: #243954; font-size: 13px; font-weight: 600; line-height: 1; box-shadow: none; text-shadow: none; cursor: pointer; }
@@ -59,3 +57,10 @@ body.mifi-shell { margin: 0; padding: 0; background: #fff; color: #172740; }
 	.mifi-shell.mifi-drawer-open { overflow: hidden; }
 	.mifi-shell .mifi-nav-link, .mifi-shell .mifi-nav-group > summary { min-height: 48px; }
 }
+
+/* Consistent accessible shortcuts beside the live status indicator. */
+.mifi-shell .mifi-header-actions { display:flex; align-items:center; gap:2px; flex-shrink:0; }
+.mifi-shell .mifi-header-action { display:inline-flex; align-items:center; justify-content:center; width:44px; min-width:44px; height:44px; padding:0; color:#52647f; border:0; background:transparent; text-decoration:none; box-sizing:border-box; }
+.mifi-shell .mifi-header-action svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.mifi-shell .mifi-header-action:hover { color:#244fce; background:#f0f4fc; }
+.mifi-shell .mifi-header-action:focus-visible { outline:2px solid #244fce; outline-offset:2px; }

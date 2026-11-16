@@ -1,49 +1,36 @@
-{#
- Copyright 2022 Jo-Philipp Wich <jo@mein.io>
- Licensed to the public under the Apache License 2.0.
--#}
+{# MiFi sign-in page. Keep LuCI's native credential POST and authentication flow. #}
+{% include('themes/mifi/header', { blank_page: true }) %}
 
-{% include('header', { blank_page: true }) %}
+<main class="mifi-login-page">
 
-<section hidden>
-	<form method="post" class="cbi-map">
-		<div class="cbi-section">
-			<div class="cbi-section-node">
-				<div class="cbi-value">
-					<label class="cbi-value-title" for="luci_username">{{ _('Username') }}</label>
-					<div class="cbi-value-field">
-						<input name="luci_username" id="luci_username" type="text" autocomplete="username" value="{{ entityencode(duser, true) }}">
-					</div>
+	<div class="mifi-login-layout">
+		<section class="mifi-login-intro" aria-labelledby="mifi-login-intro-title">
+			<p class="mifi-login-eyebrow">{{ _('YOUR CONNECTION. YOUR CONTROL.') }}</p>
+			<h1 id="mifi-login-intro-title">{{ _('Your network.') }}<br>{{ _('At a glance.') }}</h1>
+			<p class="mifi-login-description">{{ _('Keep an eye on your connection, manage your Wi-Fi, and stay on top of your messages.') }}</p>
+			<div class="mifi-login-signal" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+			<p class="mifi-login-features">{{ _('Network') }}<span>/</span>{{ _('Wireless') }}<span>/</span>{{ _('Messages') }}</p>
+		</section>
+		<section class="mifi-login-form-section" aria-labelledby="mifi-login-heading">
+			<p class="mifi-login-eyebrow">{{ _('DEVICE ACCESS') }}</p>
+			<h2 id="mifi-login-heading">{{ _('Welcome back.') }}</h2>
+			<p class="mifi-login-description">{{ _('Sign in to manage your router.') }}</p>
+			{% if (fuser): %}
+			<p id="mifi-login-error" class="mifi-login-error" role="alert">{{ _('The username or password was not accepted. Please try again.') }}</p>
+			{% endif %}
+			<form method="post" id="mifi-login-form">
+				<label for="luci_username">{{ _('Username') }}</label>
+				<input name="luci_username" id="luci_username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required value="{{ entityencode(duser, true) }}">
+				<label for="luci_password">{{ _('Password') }}</label>
+				<div class="mifi-password-field">
+					<input name="luci_password" id="luci_password" type="password" autocomplete="current-password" autofocus{% if (fuser): %} aria-describedby="mifi-login-error" aria-invalid="true"{% endif %}>
+					<button id="mifi-password-toggle" type="button" aria-controls="luci_password" aria-pressed="false" hidden data-show="{{ _('Show') }}" data-hide="{{ _('Hide') }}">{{ _('Show') }}</button>
 				</div>
-				<div class="cbi-value">
-					<label class="cbi-value-title" for="luci_password">{{ _('Password') }}</label>
-					<div class="cbi-value-field">
-						<input name="luci_password" id="luci_password" type="password" autocomplete="current-password">
-					</div>
-				</div>
-			</div>
-		</div>
-	</form>
-
-	<hr>
-
-	{% if (fuser): %}
-	<div class="alert-message error">
-		{{ _('Invalid username and/or password! Please try again.') }}
+				<button class="mifi-login-submit" id="mifi-login-submit" type="submit" data-pending="{{ _('Signing in…') }}">{{ _('Sign in') }}<span aria-hidden="true">→</span></button>
+			</form>
+			<p class="mifi-login-help">{{ _('Use your router administrator credentials.') }}</p>
+		</section>
 	</div>
-	{% endif %}
-
-	<button class="btn cbi-button-positive important">{{ _('Log in') }}</button>
-</section>
-
-<div class="mifi-login-title"><span>MiFi</span><p>{{ _('Router management') }}</p></div>
-<div id="view">
-	<div class="spinning">{{ _('Loading view…') }}</div>
-	<script>
-		L.require('ui').then(function(ui) {
-			ui.instantiateView('bootstrap.sysauth');
-		});
-	</script>
-</div>
-
-{% include('footer', { blank_page: true }) %}
+</main>
+<script src="{{ resource }}/login-mifi.js?v=1" defer></script>
+{% include('themes/mifi/footer', { blank_page: true }) %}

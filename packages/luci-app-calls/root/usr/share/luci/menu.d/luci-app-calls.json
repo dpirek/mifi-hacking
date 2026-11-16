@@ -1,0 +1,1 @@
+{"admin/network/calls":{"title":"Calls","order":82,"action":{"type":"view","path":"calls/calls"},"depends":{"acl":["luci-app-calls"]}}}

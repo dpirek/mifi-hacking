@@ -21,7 +21,7 @@
 		<title>{{ striptags(`MiFi${dispatched?.title ? ` | ${_(dispatched.title)}` : ''}`) }}</title>
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<meta name="darkreader-lock">
-		<link rel="stylesheet" href="{{ media }}/cascade.css?v=mifi-7">
+		<link rel="stylesheet" href="{{ media }}/cascade.css?v=mifi-14">
 		<link rel="stylesheet" media="only screen and (max-device-width: 854px)" href="{{ media }}/mobile.css?v=mifi-6" />
 		<link rel="icon" href="data:,">
 		{% if (node?.css): %}
@@ -30,8 +30,10 @@
 		{% if (css): %}
 		<style title="text/css">{{ css }}</style>
 		{% endif %}
+		{% if (!blank_page): %}
 		<script src="{{ dispatcher.build_url('admin/translations', dispatcher.lang) }}"></script>
 		<script src="{{ resource }}/cbi.js?v=26.288.56989~75a306d"></script>
+		{% endif %}
 	</head>
 
 	<body class="mifi-shell lang_{{ dispatcher.lang }} {{ entityencode(striptags(node?.title ?? ''), true) }}" data-page="{{ entityencode(join('-', ctx.request_path), true) }}">
@@ -42,7 +44,17 @@
 			</button>
 			<a class="mifi-brand" href="{{ dispatcher.build_url('admin') }}">MiFi</a>
 			<div id="indicators" class="mifi-indicators"></div>
-			<a class="mifi-signout" href="{{ dispatcher.build_url('admin/logout') }}">{{ _('Sign out') }}</a>
+			<div class="mifi-header-actions">
+				<a class="mifi-header-action" href="{{ dispatcher.build_url('admin/status/overview') }}" aria-label="{{ _('Dashboard') }}" title="{{ _('Dashboard') }}">
+					<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+				</a>
+				<a class="mifi-header-action" href="{{ dispatcher.build_url('admin/network/sms') }}" aria-label="{{ _('SMS') }}" title="{{ _('SMS') }}">
+					<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-2 2V11.5A8.5 8.5 0 0 1 10.5 3h2a8.5 8.5 0 0 1 8.5 8.5Z"/><path d="M7 10h9M7 14h6"/></svg>
+				</a>
+				<a class="mifi-header-action mifi-signout" href="{{ dispatcher.build_url('admin/logout') }}" aria-label="{{ _('Sign out') }}" title="{{ _('Sign out') }}">
+					<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 4H4v16h6M9 12h12m-5-5 5 5-5 5"/></svg>
+				</a>
+			</div>
 		</header>
 		<button id="mifi-nav-shade" class="mifi-nav-shade" type="button" aria-label="{{ _('Close navigation') }}" hidden></button>
 		<nav id="mifi-navigation" class="mifi-navigation" aria-label="{{ _('Main navigation') }}" hidden>

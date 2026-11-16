@@ -18,6 +18,9 @@ case "$action" in
  sms.list|sms.read|sms.send)
   [ -x /usr/libexec/rpcd/sms ] || error 'Install luci-app-sms on this router'
   printf '%s\n' "$args" | /usr/libexec/rpcd/sms call "${action#sms.}" ;;
+ calls.list|calls.dial|calls.answer|calls.reject|calls.hangup)
+  [ -x /usr/libexec/rpcd/calls ] || error 'Install luci-app-calls on this router'
+  printf '%s\n' "$args" | /usr/libexec/rpcd/calls call "${action#calls.}" ;;
  interface.restart|wireless.up|wireless.down)
   json_get_type kind name; [ "$kind" = string ] || error 'Invalid name'
   json_get_var name name

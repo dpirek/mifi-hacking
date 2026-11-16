@@ -37,7 +37,17 @@ class PowerButtonTests(unittest.TestCase):
         self.assertEqual(self.event(100), 'full\n')
         self.assertEqual(self.event(100.3), 'wifi\n')
         self.assertFalse(self.shutdown.exists())
-        self.assertEqual(self.event(100.4), 'full\n')
+        self.assertEqual(self.event(100.4), 'sms\n')
+        self.assertEqual(self.event(100.5), 'full\n')
+    def test_triple_press_requires_three_consecutive_short_presses(self):
+        self.assertEqual(self.event(100), 'full\n')
+        self.assertEqual(self.event(100.3), 'wifi\n')
+        self.assertEqual(self.event(101), 'full\n')
+        self.assertEqual(self.event(101.2), 'wifi\n')
+        self.assertEqual(self.event(101.4), 'sms\n')
+        self.assertFalse(self.shutdown.exists())
+        self.assertFalse((self.root/'last').exists())
+
     def test_separate_presses_wake_status(self):
         self.assertEqual(self.event(100), 'full\n')
         self.assertEqual(self.event(101), 'full\n')

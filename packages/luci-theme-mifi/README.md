@@ -58,3 +58,40 @@ buttons. Labels remain on one line; actions use a two-column grid on phones
 and wide desktops. Authenticated Chromium checks on both live pages passed at
 320, 390, 768 and 1280 px, including the Wireless Edit dialog. These checks did
 not apply settings or restart interfaces.
+
+Overview begins with upload/download rates and device byte counters, CPU busy
+percentage, memory usage, VPN state, LAN IP, cached public IPv4, and an SMS link
+with the unread count. Counters belong to the default-route device (falling back
+to `wwan0`) and reset on reboot or device recreation. CPU and transfer rates
+need two samples; the summary refreshes every 10 seconds. WireGuard activity is
+based on a handshake within 180 seconds; idle WireGuard, running OpenVPN and a
+present Tailscale interface are identified separately without claiming confirmed
+VPN connectivity. Public IPv4 is queried from `https://api.ipify.org` in a
+background worker, cached for five minutes, and retried after a minute on failure.
+A missing uplink or unavailable modem is displayed as unavailable. SMS read
+tracking is volatile and resets on reboot; see the SMS package notes.
+
+The metrics and SMS link were checked on the live Overview at 320, 390, 768 and
+1280 px. Isolated SMS backend tests verify unread-before-read and read-after-open
+behavior without sending any real SMS.
+
+Sign-in is a standalone page with LuCI's native credential POST, inline error
+feedback and an accessible password-visibility toggle. It has no header or
+footer. Mobile layouts hide the introductory copy and show only the form.
+The page avoids authenticated LuCI bootstrap requests before login and remains
+usable without JavaScript. Live browser checks passed at 320, 390, 768 and
+1280 px, including keyboard submission, invalid credentials and retry. The
+Overview summary uses one separator before the status sections.
+
+
+The header has matching 44px icon links for Dashboard, SMS, and Sign out, each
+with an accessible label and tooltip. Overview includes a compact ping bar chart:
+`mifi-ping` runs under procd, sends one probe to `1.1.1.1` every ten seconds, and
+keeps the most recent hour (360 samples) in RAM. The chart polls cached history;
+viewing the page does not trigger additional probes. Narrow bars show response
+times, red bars mark timeouts, and gaps represent unsampled time. Hovering a bar
+shows its timestamp and latency. Sampling continues when the browser closes;
+history resets at router reboot. `luci.main.ping_target` can select another host.
+
+The device's sleep display uses this same cached ping history, with 58 thin bars
+adapted to the 128×128 LCD. It redraws every ten seconds without extra probes.

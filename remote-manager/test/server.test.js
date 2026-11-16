@@ -6,15 +6,16 @@ const os = require('node:os');
 const path = require('node:path');
 const { once } = require('node:events');
 const { createManager } = require('../server');
-async function setup(t) {
+async function setup(t, options = {}) {
+ const origin=options.origin || 'http://localhost:3000';
  const dataDir=fs.mkdtempSync(path.join(os.tmpdir(),'mifi-manager-test-'));
- const server=await createManager({password:'test password 12345',origin:'http://localhost:3000',dataDir,pollMs:80,commandMs:350});
+ const server=await createManager({password:'test password 12345',origin,dataDir,pollMs:options.pollMs ?? 80,commandMs:options.commandMs ?? 350});
  server.listen(0,'127.0.0.1');await once(server,'listening');
  const base=`http://127.0.0.1:${server.address().port}`;
  t.after(()=>{server.closeAllConnections();server.close();fs.rmSync(dataDir,{recursive:true,force:true});});
  let cookie='';
  async function request(route,method='GET',body,headers={}) {
-  const response=await fetch(base+route,{method,headers:{Origin:'http://localhost:3000',Cookie:cookie,'Content-Type':'application/json',...headers},body:body===undefined?undefined:JSON.stringify(body)});
+  const response=await fetch(base+route,{method,headers:{Origin:origin,Cookie:cookie,'Content-Type':'application/json',...headers},body:body===undefined?undefined:JSON.stringify(body)});
   return {status:response.status,body:await response.json(),headers:response.headers};
  }
  const login=await request('/api/login','POST',{password:'test password 12345'});cookie=login.headers.get('set-cookie').split(';')[0];
@@ -65,4 +66,66 @@ test('static app security headers and HTTPS cookie configuration',async t=>{
  const page=await fetch(base+'/');assert.equal(page.status,200);assert.match(page.headers.get('content-security-policy'),/frame-ancestors 'none'/);assert.match(await page.text(),/MiFi/);
  assert.equal((await fetch(base+'/server.js')).status,401);
  await assert.rejects(createManager({password:'short'}));
+});
+
+test('HTTPS mode uses Secure, HttpOnly, SameSite cookies',async t=>{
+ const {request}=await setup(t,{origin:'https://mifi.example'});
+ const response=await request('/api/login','POST',{password:'test password 12345'});
+ assert.equal(response.status,200);
+ const cookie=response.headers.get('set-cookie');
+ assert.match(cookie,/; Secure/);assert.match(cookie,/HttpOnly/);assert.match(cookie,/SameSite=Strict/);
+});
+
+test('device removal revokes polls and pending commands and persists without affecting other devices',async t=>{
+ const {request,dataDir}=await setup(t,{pollMs:2000,commandMs:2000});
+ const removed=(await request('/api/routers','POST',{name:'Remove me'})).body;
+ const kept=(await request('/api/routers','POST',{name:'Keep me'})).body;
+ const endpoint=`/api/routers/${removed.id}`;
+ const auth={Authorization:'Bearer '+removed.token};
+ assert.equal((await request(endpoint,'DELETE',undefined,{Cookie:''})).status,401);
+ assert.equal((await request(endpoint,'DELETE',undefined,{Origin:'https://attacker.example'})).status,403);
+ const firstPoll=request('/api/agent/poll','POST',{},auth);
+ await new Promise(r=>setTimeout(r,20));
+ const pending=request(endpoint+'/commands','POST',{action:'status'});
+ const delivered=await firstPoll;
+ assert.equal(delivered.body.action,'status');
+ const waitingPoll=request('/api/agent/poll','POST',{},auth);
+ await new Promise(r=>setTimeout(r,20));
+ assert.equal((await request(endpoint,'DELETE')).status,200);
+ assert.equal((await waitingPoll).status,401);
+ assert.equal((await pending).status,409);
+ assert.equal((await request('/api/agent/result','POST',{id:delivered.body.id,result:{}},auth)).status,401);
+ assert.equal((await request('/api/agent/poll','POST',{},auth)).status,401);
+ assert.equal((await request(endpoint,'DELETE')).status,404);
+ assert.equal((await request(endpoint+'/commands','POST',{action:'status'})).status,404);
+ assert.deepEqual((await request('/api/routers')).body.map(r=>r.id),[kept.id]);
+ assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dataDir,'routers.json'),'utf8')).map(r=>r.id),[kept.id]);
+});
+
+test('voice call relay validates arguments and forwards each control once',async t=>{
+ const {request}=await setup(t);
+ const router=(await request('/api/routers','POST',{name:'Call test'})).body;
+ const auth={Authorization:'Bearer '+router.token};
+ const route=`/api/routers/${router.id}/commands`;
+ await request('/api/agent/poll','POST',{},auth);
+ for(const value of [
+  {action:'calls.dial',args:{number:'1,number=2'}},
+  {action:'calls.dial',args:{number:123}},
+  {action:'calls.answer',args:{id:'7',expected:'terminated'}},
+  {action:'calls.reject',args:{id:'7;reboot',expected:'ringing-in'}},
+  {action:'calls.hangup',args:{id:'7'}}
+ ])assert.equal((await request(route,'POST',value)).status,400);
+ for(const [action,args] of [
+  ['calls.list',{}],['calls.dial',{number:'+15551234'}],
+  ['calls.answer',{id:'7',expected:'ringing-in'}],
+  ['calls.reject',{id:'7',expected:'ringing-in'}],
+  ['calls.hangup',{id:'7',expected:'active'}]
+ ]){
+  const poll=request('/api/agent/poll','POST',{},auth);
+  const pending=request(route,'POST',{action,args});
+  const job=(await poll).body;assert.equal(job.action,action);assert.deepEqual(job.args,args);
+  await request('/api/agent/result','POST',{id:job.id,result:action==='calls.list'?{calls:[],supported:true,browser_audio:false}:{ok:true,id:'7'}},auth);
+  assert.equal((await pending).status,200);
+ }
+ assert.equal((await request('/api/agent/poll','POST',{},auth)).body.idle,true);
 });

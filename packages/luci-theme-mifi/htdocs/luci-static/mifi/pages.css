@@ -198,6 +198,72 @@ body.mifi-shell {
 .mifi-panel-toggle span { width:9px; height:9px; border-right:2px solid currentColor; border-bottom:2px solid currentColor; transform:translateY(2px) rotate(225deg); }
 .mifi-panel-toggle[aria-expanded="false"] span { transform:translateY(-2px) rotate(45deg); }
 .mifi-panel-toggle:focus-visible { outline:2px solid #244fce; outline-offset:3px; }
-.mifi-shell .mifi-status-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(145px,1fr)); gap:18px 24px; margin:0 0 24px; padding:0 0 24px; border-bottom:1px solid var(--mifi-line); }
+.mifi-shell .mifi-status-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(145px,1fr)); gap:18px 24px; margin:0 0 20px; padding:0; border:0; }
 .mifi-status-summary dt { color:#627086; font-size:12px; font-weight:400; margin-bottom:6px; }
 .mifi-status-summary dd { margin:0; font-size:16px; font-weight:650; overflow-wrap:anywhere; }
+
+.mifi-status-summary small { display:block; margin-top:5px; color:var(--mifi-muted); font-size:11px; font-weight:400; line-height:1.5; }
+.mifi-status-summary dd > a { display:inline-flex; align-items:center; min-height:44px; margin-top:-10px; color:var(--mifi-blue); text-decoration:underline; text-underline-offset:3px; }
+.mifi-status-summary dd > a:focus-visible { outline:2px solid var(--mifi-blue); outline-offset:3px; }
+@media (max-width:359px) { .mifi-shell .mifi-status-summary { grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px 14px; } }
+
+/* Standalone sign-in page, using LuCI's native POST rather than a modal. */
+.mifi-shell .mifi-login-page { width:min(1120px,100%); min-height:100vh; min-height:100svh; margin:0 auto; padding:32px 40px 20px; display:flex; flex-direction:column; box-sizing:border-box; }
+.mifi-login-eyebrow { color:var(--mifi-muted); font-size:10px; font-weight:700; letter-spacing:1.5px; line-height:1.6; }
+.mifi-login-layout { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); flex:1; align-items:center; gap:70px; padding:64px 0; }
+.mifi-login-intro { min-width:0; padding:12px 0; }
+.mifi-login-eyebrow { margin:0 0 20px; }
+.mifi-login-intro h1 { margin:0 0 24px; color:var(--mifi-ink); font-size:48px; font-weight:700; line-height:1.12; letter-spacing:-2px; }
+.mifi-login-description { margin:0 0 28px; max-width:350px; color:var(--mifi-muted); font-size:15px; line-height:1.8; }
+.mifi-login-signal { display:flex; align-items:flex-end; gap:8px; width:180px; height:82px; margin:44px 0 26px; padding-bottom:12px; border-bottom:1px solid var(--mifi-line); }
+.mifi-login-signal i { display:block; width:22px; background:var(--mifi-blue); }
+.mifi-login-signal i:nth-child(1) { height:12px; opacity:.25; }
+.mifi-login-signal i:nth-child(2) { height:23px; opacity:.4; }
+.mifi-login-signal i:nth-child(3) { height:36px; opacity:.6; }
+.mifi-login-signal i:nth-child(4) { height:50px; opacity:.8; }
+.mifi-login-signal i:nth-child(5) { height:66px; }
+.mifi-login-features { display:flex; flex-wrap:wrap; gap:12px; margin:0; color:var(--mifi-muted); font-size:12px; }
+.mifi-login-features span { color:#a3afbf; }
+.mifi-login-form-section { min-width:0; padding:8px 0 8px 40px; border-left:1px solid var(--mifi-line); }
+.mifi-login-form-section h2 { margin:0 0 12px; padding:0; border:0; color:var(--mifi-ink); font-size:32px; font-weight:700; letter-spacing:-1px; line-height:1.2; }
+.mifi-login-form-section .mifi-login-description { margin-bottom:30px; }
+.mifi-login-form-section label { display:block; margin:20px 0 8px; color:var(--mifi-ink); font-size:13px; font-weight:600; }
+.mifi-login-form-section input { display:block; width:100%; max-width:100%; min-height:50px; height:auto; padding:12px 14px; border:1px solid #adbbce; border-radius:0; background:#fff; color:var(--mifi-ink); font:inherit; font-size:16px; line-height:24px; box-shadow:none; box-sizing:border-box; }
+.mifi-password-field { display:flex; align-items:stretch; border:1px solid #adbbce; }
+.mifi-login-form-section .mifi-password-field input { flex:1; min-width:0; border:0; }
+.mifi-password-field button { flex:0 0 auto; min-width:62px; padding:0 12px; border:0; border-left:1px solid var(--mifi-line); border-radius:0; background:transparent; color:var(--mifi-muted); font:inherit; font-size:12px; font-weight:600; cursor:pointer; }
+.mifi-login-form-section input:focus-visible,.mifi-password-field button:focus-visible,.mifi-login-submit:focus-visible { outline:2px solid var(--mifi-blue); outline-offset:3px; }
+.mifi-login-submit { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-height:50px; margin:28px 0 0; padding:12px 16px; border:1px solid var(--mifi-blue); border-radius:0; background:var(--mifi-blue); color:#fff; font:inherit; font-size:14px; font-weight:650; line-height:24px; text-shadow:none; box-shadow:none; cursor:pointer; }
+.mifi-login-submit:hover:not(:disabled) { background:#193fab; border-color:#193fab; }
+.mifi-login-submit:disabled { cursor:wait; opacity:.7; }
+.mifi-login-help { margin:18px 0 0; color:var(--mifi-muted); font-size:12px; line-height:1.7; }
+.mifi-login-error { padding:12px 0 12px 14px; margin:0 0 20px; border-left:2px solid #a52c3b; color:#a52c3b; font-size:13px; line-height:1.6; }
+@media (max-width:899px) {
+ .mifi-shell .mifi-login-page { padding:24px 24px 18px; max-width:620px; }
+ .mifi-login-layout { grid-template-columns:minmax(0,1fr); gap:28px; padding:34px 0; }
+ .mifi-login-intro { display:none; }
+ .mifi-login-intro h1 { font-size:36px; letter-spacing:-1.4px; margin-bottom:16px; }
+ .mifi-login-intro .mifi-login-eyebrow,.mifi-login-signal,.mifi-login-features { display:none; }
+ .mifi-login-intro .mifi-login-description { margin-bottom:0; max-width:420px; font-size:14px; }
+ .mifi-login-form-section { padding:0; border:0; }
+ .mifi-login-form-section .mifi-login-eyebrow { margin-bottom:12px; }
+ .mifi-login-form-section h2 { font-size:27px; }
+ .mifi-login-form-section .mifi-login-description { margin-bottom:22px; font-size:14px; }
+}
+@media (max-width:359px) { .mifi-shell .mifi-login-page { padding:22px 18px 16px; } .mifi-login-intro h1 { font-size:30px; } .mifi-login-caption { font-size:9px; letter-spacing:1px; } }
+
+/* One hour of ten-second samples: narrow bars keep all 360 slots visible. */
+.mifi-shell .mifi-ping-chart { grid-column:1 / -1; min-width:0; margin:0 0 24px; padding:20px 0 18px; border-top:1px solid var(--mifi-line); border-bottom:1px solid var(--mifi-line); }
+.mifi-ping-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:20px; }
+.mifi-shell #maincontent .mifi-ping-heading h3 { margin:0 0 6px; padding:0; font-size:16px; font-weight:600; line-height:1.4; }
+.mifi-ping-target,.mifi-ping-details { margin:0; font-size:11px; color:#718098; line-height:1.6; }
+.mifi-ping-details { text-align:right; color:#455d7c; }
+.mifi-ping-plot { position:relative; min-width:0; padding-top:20px; }
+.mifi-ping-scale { position:absolute; top:0; left:0; font-size:10px; color:#8996aa; }
+.mifi-ping-canvas { display:block; width:100%; height:150px; }
+.mifi-ping-axis { display:flex; justify-content:space-between; margin-top:8px; font-size:10px; color:#8996aa; }
+.mifi-ping-legend { display:flex; flex-wrap:wrap; align-items:center; gap:16px; min-height:18px; margin-top:14px; font-size:10px; color:#718098; }
+.mifi-ping-success::before,.mifi-ping-failure::before { content:''; display:inline-block; width:5px; height:9px; margin-right:6px; background:#5279cf; vertical-align:-1px; }
+.mifi-ping-failure::before { background:#c45861; }
+.mifi-ping-hover { margin-left:auto; }
+@media (max-width:500px) { .mifi-ping-heading { flex-direction:column; gap:8px; } .mifi-ping-details { text-align:left; } .mifi-ping-hover { width:100%; margin-left:0; } }

@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 PKG_NAME:=mifi-remote
 PKG_VERSION:=1.0
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 PKG_LICENSE:=BSD-3-Clause
 include $(INCLUDE_DIR)/package.mk
 
@@ -9,7 +9,7 @@ define Package/mifi-remote
  SECTION:=net
  CATEGORY:=Network
  TITLE:=Outbound MiFi remote management agent
- DEPENDS:=+curl +ca-bundle +jshn +jsonfilter +rpcd +luci-app-sms
+ DEPENDS:=+uclient-fetch +libustream-mbedtls +ca-bundle +jshn +jsonfilter +rpcd +luci-app-sms +luci-app-calls
 endef
 
 define Package/mifi-remote/conffiles

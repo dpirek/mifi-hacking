@@ -1,0 +1,31 @@
+#!/bin/sh
+case "$1" in
+ list) echo '{"history":{}}' ;;
+ call)
+  [ "$2" = history ] || exit 1
+  . /usr/share/libubox/jshn.sh
+  state=${MIFI_PING_DIR:-/var/run/mifi-ping}
+  now=$(date +%s)
+  target=$(cat "$state/target" 2>/dev/null)
+  json_init
+  json_add_string target "${target:-1.1.1.1}"
+  json_add_int interval 10
+  json_add_int window 3600
+  json_add_int now "$now"
+  json_add_array samples
+  if [ -f "$state/history" ]; then
+   while read -r timestamp latency; do
+    case "$timestamp" in ''|*[!0-9]*) continue ;; esac
+    [ "$timestamp" -gt "$((now - 3600))" ] && [ "$timestamp" -le "$now" ] || continue
+    case "$latency" in -1) : ;; ''|*[!0-9.]*) continue ;; esac
+    json_add_object ''
+    json_add_int time "$timestamp"
+    json_add_double ms "$latency"
+    json_close_object
+   done < "$state/history"
+  fi
+  json_close_array
+  json_dump
+  ;;
+ *) exit 1 ;;
+esac

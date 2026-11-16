@@ -10,18 +10,19 @@ status() {
 }
 [ "$(uci_get enabled)" = 1 ] || { status disabled 'Remote management is disabled'; exit 0; }
 server=$(uci_get server); token=$(uci_get token)
-case "$server" in https://*) ;; http://*) [ "$MIFI_REMOTE_ALLOW_HTTP" = 1 ] || exit 1 ;; *) exit 1 ;; esac
+case "$server" in https://*|http://*) ;; *) exit 1 ;; esac
 printf '%s' "$server" | grep -Eq '^https?://[a-zA-Z0-9.-]+(:[0-9]{1,5})?$' || exit 1
 case "$token" in ''|*[!a-f0-9]*) exit 1 ;; esac
 [ "${#token}" = 64 ] || exit 1
 work=$(mktemp -d /tmp/mifi-remote.XXXXXX) || exit 1
 trap 'rm -rf "$work"' EXIT
 trap 'exit 0' INT TERM HUP
-# Keep the token out of process arguments. curl does not follow redirects.
-printf 'header = "Authorization: Bearer %s"\nheader = "Content-Type: application/json"\n' "$token" > "$work/curl.conf"
+# Use the router's existing TLS-verifying HTTP client. Configure the canonical
+# server origin directly (the management endpoints must not redirect).
 post() {
- curl --config "$work/curl.conf" --silent --show-error --fail --connect-timeout 10 --max-time 35 \
-  --output "$work/response" --data-binary "@$2" "$server/api/agent/$1" 2> "$work/error"
+ uclient-fetch --no-proxy -q -T 35 -O "$work/response" \
+  --header="Authorization: Bearer $token" --header='Content-Type: application/json' \
+  --post-file="$2" "$server/api/agent/$1" 2> "$work/error"
 }
 printf '{}' > "$work/poll"
 status connecting 'Connecting to management server'

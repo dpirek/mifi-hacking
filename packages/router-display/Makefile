@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=router-display
 PKG_VERSION:=1.0
-PKG_RELEASE:=3
+PKG_RELEASE:=16
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 
@@ -18,7 +18,7 @@ define Package/router-display
   SECTION:=utils
   CATEGORY:=Utilities
   TITLE:=Framebuffer router status display
-  DEPENDS:=+libfreetype +kmod-button-hotplug +dejavu-fonts-ttf-DejaVuSans-Bold +dejavu-fonts-ttf-DejaVuSans +modemmanager +jsonfilter
+  DEPENDS:=+libfreetype +kmod-button-hotplug +dejavu-fonts-ttf-DejaVuSans-Bold +dejavu-fonts-ttf-DejaVuSans +modemmanager +jsonfilter +nftables-json
 endef
 
 define Package/router-display/description
@@ -59,6 +59,8 @@ endef
 define Package/router-display/install
 	$(INSTALL_DIR) $(1)/usr/lib/router-display
 	$(INSTALL_DATA) ./files/metrics.sh $(1)/usr/lib/router-display/metrics.sh
+	$(INSTALL_DATA) ./files/traffic-counters.nft $(1)/usr/lib/router-display/traffic-counters.nft
+	$(INSTALL_BIN) ./files/latest-sms.sh $(1)/usr/lib/router-display/latest-sms.sh
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/router-display $(1)/usr/bin/
 	$(INSTALL_BIN) ./files/display-manager.sh $(1)/usr/bin/display-manager

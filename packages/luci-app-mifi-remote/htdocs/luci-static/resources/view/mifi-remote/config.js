@@ -10,10 +10,11 @@ return view.extend({
   var busy=false;
   var server=E('input',{id:'remote-server',type:'url',style:'width:100%',placeholder:'https://mifi.bohoosh.com',value:data.server||'https://mifi.bohoosh.com'});
   var token=E('input',{id:'remote-token',type:'password',autocomplete:'new-password',style:'width:100%',placeholder:data.token_set?_('Token saved; leave blank to keep it'):_('Paste pairing token'),maxlength:64});
-  var enabled=E('input',{id:'remote-enabled',type:'checkbox',checked:!!data.enabled});
+  var enabled=E('input',{id:'remote-enabled',type:'checkbox'});
+  enabled.checked=!!data.enabled;
   var state=E('p',{'role':'status','aria-live':'polite'},data.error||data.message||_('Not connected'));
   var feedback=E('p',{'role':'status','aria-live':'polite'});
-  var button=E('button',{type:'button',class:'cbi-button cbi-button-action',disabled:!L.hasViewPermission(),click:async function(){
+  var button=E('button',{type:'button',class:'cbi-button cbi-button-action',click:async function(){
    if(busy)return;busy=true;button.disabled=true;feedback.textContent=_('Saving…');
    try {
     var result=await configure(server.value.trim().replace(/\/$/,''),token.value.trim(),enabled.checked);
@@ -23,15 +24,17 @@ return view.extend({
     await refresh();
    }catch(e){feedback.textContent=e.message;}finally{busy=false;button.disabled=!L.hasViewPermission();}
   }},_('Save connection'));
+  button.disabled=!L.hasViewPermission();
   async function refresh(){try{var result=await status();state.textContent=result.error||result.state+': '+result.message;}catch(e){state.textContent=e.message;}}
   poll.add(refresh,10);
   return E('div',{},[E('h2',{},_('Remote management')),E('section',{class:'cbi-section'},[
    E('h3',{},_('Connect to your management server')),
-   E('p',{},_('Sign in to the management app, add this router, and paste its pairing token below. The router connects outward over HTTPS; no port forwarding is required.')),
+   E('p',{},_('Sign in to the management app, add this router, and paste its pairing token below. The router connects outward; no port forwarding is required. HTTPS is recommended for hosted servers.')),
    E('p',{},[E('label',{'for':'remote-server'},_('Management server')),E('br'),server]),
+   E('p',{},_('For local testing, HTTP is supported, for example http://192.168.1.183:3000. localhost refers to the router itself; use your computer’s LAN address for a server on your computer.')),
    E('p',{},[E('label',{'for':'remote-token'},_('Pairing token')),E('br'),token]),
    E('p',{},[enabled,' ',E('label',{'for':'remote-enabled'},_('Enable remote management'))]),
-   E('p',{},_('The management server can read system, network and SMS data, send SMS, restart interfaces and start or stop wireless radios. Disabling this connection stops remote access.')),
+   E('p',{},_('The management server can read system, network and SMS data, send SMS, control phone calls, restart interfaces and start or stop wireless radios. Disabling this connection stops remote access.')),
    state,button,feedback
   ])]);
  },handleSaveApply:null,handleSave:null,handleReset:null

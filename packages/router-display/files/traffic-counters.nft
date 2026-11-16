@@ -1,0 +1,14 @@
+# Read-only accounting for cellular drivers that do not expose netdev byte counters.
+# These chains only count packets; they do not change firewall decisions.
+table inet mifi_display {
+ counter rx { }
+ counter tx { }
+ chain ingress {
+  type filter hook prerouting priority -151; policy accept;
+  iifname "wwan*" counter name rx
+ }
+ chain egress {
+  type filter hook postrouting priority 151; policy accept;
+  oifname "wwan*" counter name tx
+ }
+}

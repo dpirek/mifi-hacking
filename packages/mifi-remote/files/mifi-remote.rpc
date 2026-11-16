@@ -29,13 +29,14 @@ case "$1" in
     json_get_var enabled enabled
     json_get_type kind server; [ "$kind" = string ] || error 'server must be a string'
     json_get_var server server
-    printf '%s' "$server" | grep -Eq '^https://[a-zA-Z0-9.-]+(:[0-9]{1,5})?$' || error 'Enter an HTTPS server origin without a path or trailing slash'
+    printf '%s' "$server" | grep -Eq '^https?://[a-zA-Z0-9.-]+(:[0-9]{1,5})?$' || error 'Enter an HTTP or HTTPS server origin without a path or trailing slash'
     json_get_type kind token; [ "$kind" = string ] || error 'token must be a string'
     json_get_var token token
     if [ -n "$token" ]; then
      case "$token" in *[!a-f0-9]*) error 'Invalid pairing token' ;; esac
      [ "${#token}" = 64 ] || error 'Pairing token must be 64 characters'
     else token=$(uci -q get mifi-remote.main.token); fi
+    if [ "$enabled" = 1 ]; then command -v uclient-fetch >/dev/null || error 'Install uclient-fetch before enabling remote management'; fi
     [ "$enabled" != 1 ] || [ -n "$token" ] || error 'Paste the token from the management app'
     uci set mifi-remote.main=remote && uci set "mifi-remote.main.server=$server" &&
      uci set "mifi-remote.main.token=$token" && uci set "mifi-remote.main.enabled=$enabled" &&

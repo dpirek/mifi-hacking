@@ -79,12 +79,48 @@ git diff ca13ba8 -- packages/rmtfs packages/modem-identity
 | IMEI management | No native IMEI CLI or dedicated LuCI page. | Added [`packages/modem-identity/`](packages/modem-identity/README.md) and [`packages/luci-app-modem-identity/`](packages/luci-app-modem-identity/): read, validate, generate, back up, change, restore and verify an identity through DIAG NV item 550. |
 | Modem storage | `rmtfs` always used read-only backing storage, with a misleading comment about its `-r` option. | Added explicit read-only configuration, serialized restart, shutdown and storage-acknowledgement patches, and a pending-save guard in [`packages/rmtfs/`](packages/rmtfs/). |
 | SMS | No dedicated SMS page or RPC service. | Added **Network → SMS**, inbox/sent views, periodic refresh and compose/send controls in [`packages/luci-app-sms/`](packages/luci-app-sms/README.md). |
+| OpenVPN | Not selected in the MF68E image. | Added `openvpn-openssl` and `luci-app-openvpn` to [`diffconfig_mf68e`](diffconfig_mf68e) and the build selection checks. The upstream LuCI application adds **VPN → OpenVPN**, profile import, instance start/stop, and configuration pages. |
 | LuCI appearance | Upstream Bootstrap navigation and branding. | Added [`packages/luci-theme-mifi/`](packages/luci-theme-mifi/README.md): desktop sidebar, mobile drawer, custom login, active navigation, accessible focus handling and shared page styling. |
 | Device display | Logo/Wi-Fi QR page with basic operator, network, hostname and battery labels. | Added a live status dashboard, measured transfer rates, validated signal/battery readings, enlarged two-row IMEI and full-screen Wi-Fi QR in [`packages/router-display/`](packages/router-display/). |
-| Power button | Double-click shut down the router; a separate hotplug handler woke the display on every release. | One handler now owns gestures: single press wakes status, double press opens Wi-Fi QR, and a three-second hold followed by release shuts down. See [`rc.button.power`](packages/configs-mifi/files/rc.button.power). |
+| Power button | Double-click shut down the router; a separate hotplug handler woke the display on every release. | One handler now owns gestures: single press wakes status, double press opens Wi-Fi QR, triple press shows the latest received SMS, and a three-second hold followed by release shuts down. See [`rc.button.power`](packages/configs-mifi/files/rc.button.power). |
 | Build selection | MF68E build checks covered the existing configuration, display and framebuffer packages. | [`diffconfig_mf68e`](diffconfig_mf68e) selects the new IMEI, SMS and theme packages; [`devenv/build-mf68e.sh`](devenv/build-mf68e.sh) verifies they remain selected after `make defconfig`. |
 | Tests and records | The added features had no corresponding regression suites or device installation record. | Added installer, DIAG, storage, display, gesture, SMS and navigation tests, plus [`device-info.md`](device-info.md) and package-level documentation. |
 | Local artifacts | No exclusions for the new backup/build workflow. | [`.gitignore`](.gitignore) excludes private `backups/`, generated `installer-output/` and Python bytecode caches. |
+
+### Latest SMS on the device display
+
+Press the power button three times quickly (no more than half a second between
+releases) to display the newest received SMS. The view shows the sender and
+wraps text to the 128×128 screen; long messages advance automatically, with a
+page indicator. It remains bright for one minute before returning to the sleep ping graph.
+A single press returns to status, a double press opens the Wi-Fi QR, and holding
+the button for three seconds still shuts down the router.
+
+The SMS snapshot is fetched when the view opens, so triple-press again to refresh.
+Messages are selected by received timestamp, accounting for timezone offsets;
+sent messages are excluded. No message is sent or deleted. The snapshot is kept
+in a private RAM-backed file. An empty inbox or unavailable modem gets an explicit
+screen message. The collector and renderer live in
+[`packages/router-display/`](packages/router-display/); the gesture handler is
+[`rc.button.power`](packages/configs-mifi/files/rc.button.power).
+
+### OpenVPN management
+
+The MF68E build includes `openvpn-openssl` with DCO disabled and the upstream LuCI application
+`luci-app-openvpn`. Open **VPN → OpenVPN** (`/cgi-bin/luci/admin/vpn/openvpn`)
+to import an `.ovpn` profile, create or edit instances, and start or stop them.
+These pages use the MiFi theme's shared navigation and form styles. Their source
+comes from the OpenWrt LuCI feed (`applications/luci-app-openvpn`); this repository
+selects that package rather than maintaining a separate copy. The existing router
+uses a locally signed TUN-mode package because no matching DCO kernel module
+is available; the packaging source and validation notes are in
+[`packages/openvpn-userspace/`](packages/openvpn-userspace/README.md).
+
+Installing support does not establish a VPN connection. Configure a provider or
+server profile, its credentials/certificates, and the appropriate firewall,
+routing and DNS settings before enabling an instance. No default route, kill
+switch, or provider account is configured automatically. A connection to an
+external VPN server must be tested separately once a real profile is supplied.
 
 ### MF68E installation and recovery
 
@@ -157,17 +193,35 @@ read-only storage and no startup reapply service. Full details are in the
 ### Display and gesture details
 
 The default status page now shows battery/charging state, recent signal quality,
-network/operator, IMEI and download/upload rates. Battery capacity is read from
+network/operator, a single-line IMEI, the SIM phone number, and a live data-flow bar. Battery capacity is read from
 sysfs; a voltage-derived fallback is marked as an estimate. Unknown or stale
 readings remain unknown. Transfer rates use counter deltas and monotonic time,
 with handling for missing interfaces, counter resets and interface changes.
 The traffic interface can be selected in `/etc/config/display`.
+The data-flow bar refreshes once per second while awake and measures combined
+upload/download throughput; full scale defaults to 10 Mbps, configurable with
+`display.display.traffic_scale_mbps`. Matching four-pixel bars and six-pixel
+margins align battery, signal, and traffic indicators. No numeric percentages
+or upload/download text rows are shown. The Qualcomm cellular driver reports
+zero netdev counters even during traffic, so a dedicated nftables accounting
+table supplies byte counts on this hardware. Its rules only count packets;
+they do not change firewall decisions. Counter resets reinitialize the sample.
 
-All 15 IMEI digits fit in two enlarged, centered rows. The former bottom
+
+All 15 IMEI digits fit on one line, aligned with the phone number. The former bottom
 interface-name line is removed. Wi-Fi QR uses the full 128 × 128 panel, black
 modules on white, a quiet border and escaped credential characters. The QR page
 stays bright for 30 seconds, then dim for another 30 seconds by default. Page
 switching is temporary and does not repeatedly write the UCI configuration.
+
+The sleep screen is a full-screen ping history graph, replacing the analog
+clock. It reads the same RAM-backed one-hour history as the web dashboard and
+redraws every ten seconds. The upper half shows live/stale status, successful
+and failed probe percentages, and the last, average, minimum and maximum
+successful response times. Percentages describe observed probes; unsampled
+time is excluded. The lower half has 58 thin green bars with six-pixel margins.
+Each grouped bar preserves peak successful latency; a timeout adds only a red
+one-pixel marker at the baseline, never a full-height bar. A single press restores the status screen for one minute.
 
 The display manager refreshes while awake without resetting its dim/off timers,
 stops refreshing when off, cleans up timers/FIFO/PID state and renders a complete
@@ -228,6 +282,26 @@ are not a substitute for rebuilding the tracked source.
 
 ## Features
 
+### Remote management
+
+[`remote-manager/`](remote-manager/README.md) is a standalone Node.js 22+ server
+with a vanilla JavaScript dashboard and no npm dependencies. It supports paired
+routers, status, interfaces, wireless runtime controls and SMS through an
+outbound HTTPS relay. **System → Remote management** in LuCI configures the
+server URL and per-router token. MF68E builds include the feature, disabled by
+default. The supplied `https://mifi.bohoosh.com` address is an example; deploy the
+server and configure HTTPS before pairing. Hosting and API instructions are in
+the [management app README](remote-manager/README.md).
+
+### Voice call controls
+
+**Network → Calls** lists incoming/outgoing calls and provides dialing, answer,
+reject and hang-up controls. The standalone remote manager also includes Calls.
+This is call control only: browser audio is unavailable and carrier voice/VoLTE
+compatibility remains unverified. Live call listing and simulated controls were
+checked without placing or answering real calls. See
+[Calls package notes](packages/luci-app-calls/README.md).
+
 ### SMS messages
 
 MF68E builds include **Network → SMS**, with incoming and sent messages, a
@@ -267,11 +341,11 @@ footer and OpenWrt logo branding while retaining LuCI's form components.
 - Single press: wake the status display.
 - Double press within half a second: show a full-screen Wi-Fi connection QR code
   for 60 seconds. Single press returns to status.
+- Triple press: show the latest received SMS for one minute; long messages page automatically.
 - Hold for at least three seconds, then release: shut down the router.
 
 Power-on from shutdown is controlled by the PMIC/bootloader and remains
-unverified on this unit. The status display shows all IMEI digits in two enlarged
-rows and omits the traffic-interface footer.
+unverified on this unit. The status display shows all IMEI digits on one line and omits the traffic-interface footer.
 
 ### Base features inherited from the original source
 

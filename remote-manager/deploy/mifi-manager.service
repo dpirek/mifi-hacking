@@ -1,0 +1,22 @@
+[Unit]
+Description=MiFi remote management
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+StateDirectory=mifi-manager
+WorkingDirectory=/opt/mifi-manager
+EnvironmentFile=/etc/mifi-manager.env
+ExecStart=/usr/bin/node /opt/mifi-manager/server.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

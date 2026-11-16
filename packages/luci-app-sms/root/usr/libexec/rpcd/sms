@@ -8,16 +8,41 @@ error() {
 	exit 0
 }
 # Keep create + send within rpcd's execution timeout.
+read_dir=${SMS_READ_DIR:-/tmp/mifi-sms-read}
+message_key() { printf '%s' "$1" | sha256sum | cut -d' ' -f1; }
+mark_read() {
+ umask 077
+ mkdir -p "$read_dir"
+ key=$(message_key "$1")
+ grep -qxF "$key" "$read_dir/seen" 2>/dev/null || printf '%s\n' "$key" >> "$read_dir/seen"
+}
 mm() { mmcli --timeout=10 "$@"; }
 case "$1" in
 	list)
-		echo '{"list":{},"read":{"id":""},"send":{"number":"","text":""}}'
+		echo '{"list":{},"summary":{},"read":{"id":""},"send":{"number":"","text":""}}'
 		;;
 	call)
 		IFS= read -r input
 		jsonfilter -s "$input" -e '@' >/dev/null 2>&1 || error 'Invalid JSON request'
 		json_load "$input" || error 'Invalid JSON request'
 		case "$2" in
+            summary)
+                result=$(mm -m any --messaging-list-sms -J 2>&1) || error "$result"
+                paths=$(jsonfilter -s "$result" -e '@["modem.messaging.sms"][*]')
+                unread=0; received=0; started=$(date +%s)
+                for path in $paths; do
+                    [ "$(( $(date +%s) - started ))" -lt 8 ] || error 'SMS summary is taking too long; open the SMS page to inspect messages'
+                    id=${path##*/}
+                    case "$id" in ''|*[!0-9]*) continue ;; esac
+                    message=$(mm -s "$id" -J 2>&1) || error 'Could not read SMS status'
+                    state=$(jsonfilter -s "$message" -e '@.sms.properties.state')
+                    [ "$state" = received ] || continue
+                    received=$((received + 1))
+                    key=$(message_key "$message")
+                    grep -qxF "$key" "$read_dir/seen" 2>/dev/null || unread=$((unread + 1))
+                done
+                json_init; json_add_int unread "$unread"; json_add_int received "$received"; json_dump
+                ;;
 			list)
 				result=$(mm -m any --messaging-list-sms -J 2>&1) || error "$result"
 				printf '%s\n' "$result"
@@ -26,6 +51,7 @@ case "$1" in
 				json_get_var id id
 				case "$id" in ''|*[!0-9]*) error 'Invalid message ID' ;; esac
 				result=$(mm -s "$id" -J 2>&1) || error "$result"
+				mark_read "$result"
 				printf '%s\n' "$result"
 				;;
 			send)

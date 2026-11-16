@@ -1,0 +1,26 @@
+#!/bin/sh
+# One ICMP probe per ten-second slot; keep one hour of samples in RAM.
+umask 077
+state=${MIFI_PING_DIR:-/var/run/mifi-ping}
+mkdir -p "$state"
+target=${MIFI_PING_TARGET:-$(uci -q get luci.main.ping_target)}
+case "$target" in ''|*[!a-zA-Z0-9.:_-]*) target=1.1.1.1 ;; esac
+previous_target=$(cat "$state/target" 2>/dev/null)
+[ "$previous_target" = "$target" ] || rm -f "$state/history"
+printf '%s\n' "$target" > "$state/target"
+trap 'rm -f "$state/history.$$"; exit 0' INT TERM
+while :; do
+ started=$(date +%s)
+ latency=-1
+ if response=$("${MIFI_PING_BIN:-ping}" -n -c 1 -W 2 -w 3 "$target" 2>/dev/null); then
+  measured=$(printf '%s\n' "$response" | awk '{for(i=1;i<=NF;i++)if($i ~ /^time[=<][0-9]/){sub(/^time[=<]/,"",$i);if($i ~ /^[0-9]+([.][0-9]+)?$/){print $i;exit}}}')
+  case "$measured" in ''|*[!0-9.]*) : ;; *) latency=$measured ;; esac
+ fi
+ { [ ! -f "$state/history" ] || awk -v cutoff="$((started - 3600))" -v started="$started" '$1>cutoff && int($1/10)!=int(started/10)' "$state/history"; printf '%s %s\n' "$started" "$latency"; } | tail -n 360 > "$state/history.$$"
+ mv "$state/history.$$" "$state/history"
+ [ "$1" != --once ] || exit 0
+ now=$(date +%s)
+ wait=$((started + 10 - now))
+ [ "$wait" -gt 0 ] || wait=1
+ sleep "$wait"
+done

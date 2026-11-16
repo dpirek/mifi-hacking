@@ -1,0 +1,74 @@
+#!/bin/sh
+# Fast local metrics. Public address lookup runs separately and is cached.
+. /usr/share/libubox/jshn.sh
+umask 077
+state_dir=${MIFI_METRICS_DIR:-/var/run/mifi-overview}
+mkdir -p "$state_dir"
+now=$(date +%s)
+if [ "$1" = public ]; then
+ mkdir "$state_dir/public.lock" 2>/dev/null || exit 0
+ trap 'rmdir "$state_dir/public.lock"' EXIT
+ tmp="$state_dir/public-response.$$"
+ if uclient-fetch --no-proxy -q -T 4 -O "$tmp" https://api.ipify.org >/dev/null 2>&1; then
+  address=$(cat "$tmp")
+  printf '%s\n' "$address" | awk -F. 'NF!=4 {exit 1} {for(i=1;i<=4;i++) if($i !~ /^[0-9]+$/ || $i>255) exit 1}' || address=-
+ else address=-; fi
+ rm -f "$tmp"
+ printf '%s %s\n' "$now" "$address" > "$state_dir/public.tmp"
+ mv "$state_dir/public.tmp" "$state_dir/public"
+ exit 0
+fi
+cpu=-1
+read -r label user nice system idle iowait irq softirq steal rest < /proc/stat
+total=$((user + nice + system + idle + iowait + irq + softirq + steal))
+idle=$((idle + iowait))
+if [ -f "$state_dir/cpu" ]; then
+ read -r previous_total previous_idle < "$state_dir/cpu"
+ delta=$((total - previous_total)); idle_delta=$((idle - previous_idle))
+ if [ "$delta" -gt 0 ] && [ "$idle_delta" -ge 0 ]; then cpu=$((100 * (delta - idle_delta) / delta)); fi
+fi
+printf '%s %s\n' "$total" "$idle" > "$state_dir/cpu.$$"; mv "$state_dir/cpu.$$" "$state_dir/cpu"
+[ "$cpu" -le 100 ] && [ "$cpu" -ge 0 ] || cpu=-1
+memory=$(awk '/^MemTotal:/ {t=$2} /^MemAvailable:/ {a=$2; found=1} /^MemFree:/ {f=$2} /^Buffers:/ {b=$2} /^Cached:/ {c=$2} END {if(t>0) printf "%d",100*(t-(found?a:f+b+c))/t; else print -1}' /proc/meminfo)
+lan=$(ubus call network.interface.lan status 2>/dev/null)
+router_ip=$(jsonfilter -s "$lan" -e '@["ipv4-address"][0].address' 2>/dev/null)
+[ -n "$router_ip" ] || router_ip=$(uci -q get network.lan.ipaddr | cut -d' ' -f1)
+device=$(ip -4 route show default 2>/dev/null | awk '{for(i=1;i<=NF;i++)if($i=="dev"){print $(i+1);exit}}')
+[ -n "$device" ] || device=wwan0
+case "$device" in *[!a-zA-Z0-9_.:-]*) device=unknown ;; esac
+rx=-1; tx=-1; rx_rate=-1; tx_rate=-1
+if [ -r "/sys/class/net/$device/statistics/rx_bytes" ]; then
+ rx=$(cat "/sys/class/net/$device/statistics/rx_bytes")
+ tx=$(cat "/sys/class/net/$device/statistics/tx_bytes")
+ if [ -f "$state_dir/traffic" ]; then
+  read -r old_time old_device old_rx old_tx < "$state_dir/traffic"
+  elapsed=$((now - old_time))
+  if [ "$old_device" = "$device" ] && [ "$elapsed" -gt 0 ] && [ "$rx" -ge "$old_rx" ] && [ "$tx" -ge "$old_tx" ]; then
+   rx_rate=$(((rx - old_rx) / elapsed)); tx_rate=$(((tx - old_tx) / elapsed))
+  fi
+ fi
+ printf '%s %s %s %s\n' "$now" "$device" "$rx" "$tx" > "$state_dir/traffic.$$"; mv "$state_dir/traffic.$$" "$state_dir/traffic"
+fi
+vpn='Off'
+if command -v wg >/dev/null; then
+ interfaces=$(wg show interfaces 2>/dev/null)
+ if [ -n "$interfaces" ]; then
+  vpn='WireGuard up · no recent handshake'
+  if wg show all latest-handshakes 2>/dev/null | awk -v now="$now" '$3>0 && now-$3<180 {found=1} END {exit !found}'; then vpn='WireGuard active'; fi
+ fi
+fi
+if pidof openvpn >/dev/null 2>&1; then vpn="$([ "$vpn" = Off ] || printf '%s · ' "$vpn")OpenVPN running"; fi
+if [ -d /sys/class/net/tailscale0 ]; then vpn="$([ "$vpn" = Off ] || printf '%s · ' "$vpn")Tailscale interface present"; fi
+public_ip=''; public_time=0
+if [ -f "$state_dir/public" ]; then read -r public_time public_ip < "$state_dir/public"; fi
+ttl=300; [ "$public_ip" != - ] || ttl=60
+if [ "$((now - public_time))" -ge "$ttl" ]; then "$0" public </dev/null >/dev/null 2>&1 & fi
+[ "$public_ip" != - ] || public_ip=''
+json_init
+json_add_int cpu "$cpu"; json_add_int memory "$memory"
+json_add_string router_ip "$router_ip"; json_add_string public_ip "$public_ip"
+json_add_string traffic_device "$device"
+json_add_int download_bytes "$rx"; json_add_int upload_bytes "$tx"
+json_add_int download_rate "$rx_rate"; json_add_int upload_rate "$tx_rate"
+json_add_string vpn "$vpn"
+json_dump

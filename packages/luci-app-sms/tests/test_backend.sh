@@ -5,6 +5,7 @@ backend=$1
 work=$(mktemp -d /tmp/sms-test.XXXXXX)
 trap 'rm -rf "$work"' EXIT
 export SMS_TEST_DIR=$work
+export SMS_READ_DIR="$work/read"
 export PATH="$work:$PATH"
 cat > "$work/mmcli" <<'MOCK'
 #!/bin/sh
@@ -27,7 +28,9 @@ call() { printf '%s\n' "$2" | sh "$backend" call "$1"; }
 contains() { case "$1" in *"$2"*) ;; *) echo "FAIL: expected $2 in $1"; exit 1 ;; esac; }
 contains "$(sh "$backend" list)" '"send"'
 contains "$(call list '{}')" '/SMS/7'
+[ "$(jsonfilter -s "$(call summary '{}')" -e '@.unread')" = 1 ]
 contains "$(call read '{"id":"7"}')" 'received'
+[ "$(jsonfilter -s "$(call summary '{}')" -e '@.unread')" = 0 ]
 contains "$(call read '{"id":"7;touch /tmp/injected"}')" 'Invalid message ID'
 contains "$(call send '{"number":"1,number=2","text":"hello"}')" 'optional leading'
 contains "$(call send '{"number":123,"text":"hello"}')" 'must be a string'
@@ -43,4 +46,4 @@ contains "$(call send '{"number":"123","text":"hello"}')" 'Refresh and check its
 touch "$work/offline"
 contains "$(call list '{}')" 'modem not enabled yet'
 contains "$(call send 'not json')" 'Invalid JSON'
-echo 'PASS: backend list/read/send, quoting, Unicode, validation, failures and no retry'
+echo 'PASS: backend unread tracking, list/read/send, quoting, Unicode, validation, failures and no retry'

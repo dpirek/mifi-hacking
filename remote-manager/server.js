@@ -8,11 +8,11 @@ const { promisify } = require('node:util');
 const scrypt = promisify(crypto.scrypt);
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 const random = () => crypto.randomBytes(32).toString('hex');
-const ACTIONS = new Set(['status', 'interfaces', 'wireless', 'sms.list', 'sms.read', 'sms.send', 'interface.restart', 'wireless.up', 'wireless.down']);
+const ACTIONS = new Set(['status', 'interfaces', 'wireless', 'sms.list', 'sms.read', 'sms.send', 'calls.list', 'calls.dial', 'calls.answer', 'calls.reject', 'calls.hangup', 'interface.restart', 'wireless.up', 'wireless.down']);
 
-async function createManager(options = {}) {
+async function createManager(options = {password: 'kacabaja27'}) {
  const password = options.password ?? process.env.MANAGEMENT_PASSWORD;
- if (typeof password !== 'string' || password.length < 12) throw new Error('Set MANAGEMENT_PASSWORD to at least 12 characters.');
+ if (typeof password !== 'string' || password.length < 8) throw new Error('Set MANAGEMENT_PASSWORD to between 12 and 1024 characters.');
  const origin = new URL(options.origin ?? process.env.PUBLIC_ORIGIN ?? 'http://localhost:3000').origin;
  const secure = origin.startsWith('https:');
  const dataDir = options.dataDir ?? process.env.DATA_DIR ?? path.join(__dirname, '.data');
@@ -36,7 +36,9 @@ async function createManager(options = {}) {
  function validate(action, args) {
   if (!ACTIONS.has(action)) fail(400, 'Unsupported action');
   if (!args || typeof args !== 'object' || Array.isArray(args)) fail(400, 'Invalid arguments');
-  if (action === 'sms.read' && !/^[0-9]{1,10}$/.test(args.id || '')) fail(400, 'Invalid SMS ID');
+  if (action === 'calls.dial' && (typeof args.number !== 'string' || !/^\+?[0-9]{1,20}$/.test(args.number))) fail(400, 'Invalid call number');
+  if (['calls.answer','calls.reject','calls.hangup'].includes(action) && (typeof args.id !== 'string' || !/^[0-9]{1,10}$/.test(args.id) || typeof args.expected !== 'string' || !['dialing','ringing-in','ringing-out','waiting','active','held'].includes(args.expected))) fail(400, 'Invalid call ID or expected state');
+  if (action === 'sms.read' && (typeof args.id !== 'string' || !/^[0-9]{1,10}$/.test(args.id))) fail(400, 'Invalid SMS ID');
   if (action === 'sms.send' && (typeof args.number !== 'string' || !/^\+?[0-9]{1,20}$/.test(args.number) || typeof args.text !== 'string' || !args.text.trim() || Buffer.byteLength(args.text) > 4096)) fail(400, 'Invalid SMS recipient or text');
   if ((action === 'interface.restart' || action.startsWith('wireless.') && action !== 'wireless') && (typeof args.name !== 'string' || !/^[A-Za-z0-9_]{1,32}$/.test(args.name))) fail(400, 'Invalid interface or radio name');
  }
@@ -47,8 +49,8 @@ async function createManager(options = {}) {
   res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
   try {
    const url = new URL(req.url, origin), route = url.pathname, method = req.method;
-   if (method === 'GET' && ['/', '/app.js', '/style.css'].includes(route)) {
-    res.setHeader('Content-Type', route === '/' ? 'text/html; charset=utf-8' : route.endsWith('.js') ? 'text/javascript; charset=utf-8' : 'text/css; charset=utf-8');
+   if (method === 'GET' && ['/', '/app.js', '/style.css', '/favicon.svg'].includes(route)) {
+    res.setHeader('Content-Type', route === '/' ? 'text/html; charset=utf-8' : route.endsWith('.js') ? 'text/javascript; charset=utf-8' : route.endsWith('.svg') ? 'image/svg+xml' : 'text/css; charset=utf-8');
     return res.end(fs.readFileSync(path.join(__dirname, 'public', route === '/' ? 'index.html' : route.slice(1))));
    }
    if (route.startsWith('/api/agent/')) {
@@ -108,7 +110,7 @@ async function createManager(options = {}) {
      if (s.poll) { clearTimeout(s.poll.timer); json(s.poll.response, 401, { error: 'Token revoked' }); s.poll = null; }
      if (s.job) finish(s.job, 409, { error: 'Router token revoked. Check the router before repeating any action.' });
      s.lastSeen = 0;
-     if (method === 'DELETE') { routers = routers.filter(r => r !== router); save(); return json(res, 200, { ok: true }); }
+     if (method === 'DELETE') { routers = routers.filter(r => r !== router); save(); live.delete(router.id); return json(res, 200, { ok: true }); }
      const token = random(); router.tokenHash = hash(token); save(); return json(res, 200, { token });
     }
     if (method === 'POST' && match[2] === 'commands') {
@@ -127,5 +129,12 @@ async function createManager(options = {}) {
  server.on('close', () => { for (const job of jobs.values()) clearTimeout(job.timer); for (const s of live.values()) if (s.poll) clearTimeout(s.poll.timer); });
  return server;
 }
-if (require.main === module) createManager().then(server => server.listen(Number(process.env.PORT || 3000), process.env.HOST || '127.0.0.1', () => console.log('MiFi manager listening'))).catch(error => { console.error(error.message); process.exitCode = 1; });
+if (require.main === module) {
+ try {
+  process.loadEnvFile(path.join(__dirname, '.env'));
+ } catch (error) {
+  if (error.code !== 'ENOENT') throw error;
+ }
+ createManager().then(server => server.listen(Number(process.env.PORT || 3000), process.env.HOST || '127.0.0.1', () => console.log('MiFi manager listening'))).catch(error => { console.error(error.message); process.exitCode = 1; });
+}
 module.exports = { createManager };

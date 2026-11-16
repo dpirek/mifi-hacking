@@ -1,0 +1,66 @@
+#!/bin/sh
+. /usr/share/libubox/jshn.sh
+error() { json_init; json_add_string error "$1"; json_dump; exit 0; }
+mm() { mmcli --timeout=5 "$@"; }
+field() { jsonfilter -s "$1" -e "@.call.properties.$2" 2>/dev/null; }
+case "$1" in
+ list) echo '{"list":{},"dial":{"number":""},"answer":{"id":"","expected":""},"reject":{"id":"","expected":""},"hangup":{"id":"","expected":""}}' ;;
+ call)
+  IFS= read -r input
+  jsonfilter -s "$input" -e '@' >/dev/null 2>&1 || error 'Invalid JSON request'
+  json_load "$input"
+  case "$2" in
+   list)
+    result=$(mm -m any --voice-list-calls -J 2>&1) || error "$result"
+    paths=$(jsonfilter -s "$result" -e '@["modem.voice.call"][*]')
+    json_init; json_add_boolean supported 1; json_add_boolean browser_audio 0; json_add_array calls
+    started=$(date +%s); count=0; partial=0
+    for path in $paths; do
+     [ "$count" -lt 16 ] && [ "$(( $(date +%s) - started ))" -lt 12 ] || { partial=1; break; }
+     id=${path##*/}; case "$id" in ''|*[!0-9]*) continue ;; esac
+     call=$(mm -o "$id" -J 2>/dev/null) || { partial=1; continue; }
+     json_add_object ''
+     json_add_string id "$id"
+     json_add_string number "$(field "$call" number)"
+     json_add_string direction "$(field "$call" direction)"
+     json_add_string state "$(field "$call" state)"
+     json_add_string reason "$(jsonfilter -s "$call" -e '@.call.properties["state-reason"]' 2>/dev/null)"
+     json_close_object; count=$((count+1))
+    done
+    json_close_array; json_add_boolean partial "$partial"; json_dump ;;
+   dial)
+    json_get_type kind number; [ "$kind" = string ] || error 'Number must be a string'
+    json_get_var number number
+    case "$number" in +*) digits=${number#+} ;; *) digits=$number ;; esac
+    case "$digits" in ''|*[!0-9]*) error 'Use digits and an optional leading + for the number' ;; esac
+    [ "${#digits}" -le 20 ] || error 'Number is too long'
+    result=$(mm -m any "--voice-create-call=number=$number" 2>&1) || error "$result"
+    id=$(printf '%s\n' "$result" | sed -n 's|^Successfully created new call: /org/freedesktop/ModemManager1/Call/\([0-9][0-9]*\)$|\1|p')
+    case "$id" in ''|*[!0-9]*) error 'Could not identify the created call. Refresh before trying again.' ;; esac
+    result=$(mm -o "$id" --start 2>&1) || error "Dialing call $id failed or timed out. Refresh before trying again. $result"
+    json_init; json_add_boolean ok 1; json_add_string id "$id"; json_dump ;;
+   answer|reject|hangup)
+    json_get_type kind id; [ "$kind" = string ] || error 'Call ID must be a string'
+    json_get_var id id
+    case "$id" in ''|*[!0-9]*) error 'Invalid call ID' ;; esac
+    [ "${#id}" -le 10 ] || error 'Invalid call ID'
+    json_get_type kind expected; [ "$kind" = string ] || error 'Expected call state is required'
+    json_get_var expected expected
+    call=$(mm -o "$id" -J 2>&1) || error 'Call is no longer available. Refresh the call list.'
+    state=$(field "$call" state); direction=$(field "$call" direction)
+    [ -n "$state" ] && [ "$state" = "$expected" ] || error 'Call state changed. Refresh before trying again.'
+    case "$2" in
+     answer|reject)
+      [ "$direction" = incoming ] || error 'This is not an incoming call'
+      case "$state" in ringing-in|waiting) ;; *) error 'This call is no longer ringing' ;; esac
+      if [ "$2" = answer ]; then operation=--accept; else operation=--hangup; fi ;;
+     hangup)
+      case "$state" in dialing|ringing-in|ringing-out|waiting|active|held) ;; *) error 'This call cannot be hung up in its current state' ;; esac
+      operation=--hangup ;;
+    esac
+    result=$(mm -o "$id" "$operation" 2>&1) || error "Call action failed or timed out. Refresh before trying again. $result"
+    json_init; json_add_boolean ok 1; json_add_string id "$id"; json_dump ;;
+   *) error 'Unknown method' ;;
+  esac ;;
+ *) exit 1 ;;
+esac

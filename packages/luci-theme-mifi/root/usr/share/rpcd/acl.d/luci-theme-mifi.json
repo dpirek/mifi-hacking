@@ -1,1 +1,15 @@
-{"luci-theme-mifi":{"description":"Read the router status summary","read":{"ubus":{"mifi-status":["status"]}}}}
+{
+  "luci-theme-mifi": {
+    "description": "Read the router status summary",
+    "read": {
+      "ubus": {
+        "mifi-status": [
+          "status"
+        ],
+        "mifi-ping": [
+          "history"
+        ]
+      }
+    }
+  }
+}

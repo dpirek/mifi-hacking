@@ -1,5 +1,5 @@
 #!/bin/sh
-# A short press wakes status, a double press opens Wi-Fi QR, a 3s hold powers off.
+# Short press: status; double press: Wi-Fi QR; triple press: latest SMS; hold: power off.
 [ "${BUTTON:-power}" = power ] || exit 0
 FIFO=${POWER_BUTTON_FIFO:-$(uci -q get display.display.fifo)}
 FIFO=${FIFO:-/var/run/display.fifo}
@@ -25,14 +25,22 @@ case "$ACTION" in
             exit $?
         fi
         now=$(awk '{printf "%.0f\n", $1 * 100}' "${POWER_BUTTON_UPTIME:-/proc/uptime}")
-        previous=$(cat "$STATE" 2>/dev/null)
+        previous=0; count=0
+        [ ! -f "$STATE" ] || read -r previous count < "$STATE" 2>/dev/null || :
+        case "$count" in 1|2) : ;; *) count=1 ;; esac
         case "$previous" in ''|*[!0-9]*) previous=0 ;; esac
         elapsed=$((now - previous))
         if [ "$previous" -gt 0 ] && [ "$elapsed" -ge 0 ] && [ "$elapsed" -le 50 ]; then
-            rm -f "$STATE"
-            show_display wifi
+            count=$((count + 1))
+            if [ "$count" -ge 3 ]; then
+                rm -f "$STATE"
+                show_display sms
+            else
+                printf '%s 2\n' "$now" > "$STATE"
+                show_display wifi
+            fi
         else
-            printf '%s\n' "$now" > "$STATE"
+            printf '%s 1\n' "$now" > "$STATE"
             show_display full
         fi
         ;;
